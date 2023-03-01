@@ -1,8 +1,6 @@
-# About This Workshop
+# Introduction
 
 Estimated Time: 5 minutes
-
-## Introduction
 
 I've always been curious about using Vision ML in some projects of mine. I  dreamt of knowing how a Tesla autopilot worked on the inside, and whether I could make my own AI system at some point in my life. I was tired of dreaming, so I decided to learn by example (hands-on).
 
@@ -21,13 +19,13 @@ Today, we're going to create a *computer vision model*, which will detect differ
 
 > **Note**: as you can see, the little girl on the second row, third column is wearing the mask with their nose showing, which is *incorrect*. We want our custom model to detect cases like these, which are also the hardest to represent, as there are a lot of pictures of people with and without masks, but there aren't as many of people wearing masks incorrectly on the Internet; which causes our dataset to be imbalanced.
 
-## Final Result
+## Task 1: Final Result
 
 This is a YouTube video illustrating what you will be able to achieve after completing this workshop.
 
 [Watch the video](youtube:LPRrbPiZ2X8)
 
-## Objectives
+## Task 2: Objectives
 
 In this lab, you will complete the following steps:
 
@@ -37,14 +35,14 @@ In this lab, you will complete the following steps:
 
 &check; Preparing OCI compute instances for training Computer Vision Models
 
-## OCI Elements
+## Task 3: OCI Elements
 
 This solution is designed to work mainly with OCI Compute. We will use an OCI Compute Instance to save costs (compared to other Cloud providers) and training our Computer Vision model.
 
 You can read more about the services used in the lab here:
 - [OCI Compute](https://www.oracle.com/cloud/compute/)
 
-## Useful Resources
+## Task 4: Useful Resources
 
 Here are three articles to get you from beginner to Computer Vision *hero*. This workshop is partly based on the content in these Medium articles.
 

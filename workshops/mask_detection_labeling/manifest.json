@@ -14,9 +14,9 @@
       "filename": "https://raw.githubusercontent.com/oracle/learning-library/master/common/labs/cloud-login/cloud-login.md"
     },
     {
-      "title": "Lab 1: Explore RoboFlow",
-      "description": "Using RoboFlow to find good datasets",
-      "filename": "../../mask_detection_labeling/intro/intro.md",
+      "title": "Lab 1: Understand YOLOv5",
+      "description": "Understand YOLOv5 and why we need it",
+      "filename": "../../mask_detection_labeling/explore/explore.md",
       "type": "dbcs"
     },
     {
@@ -26,9 +26,9 @@
       "type": "dbcs"
     },
     {
-      "title": "Lab 3: Manipulate DataSet",
-      "description": "Interact with the optimizer.",
-      "filename": "../../mask_detection_labeling/manipulate/manipulate.md",
+      "title": "Lab 3: Explore RoboFlow",
+      "description": "Using RoboFlow to find good datasets",
+      "filename": "../../mask_detection_labeling/roboflow/roboflow.md",
       "type": "dbcs"
     },
     {
