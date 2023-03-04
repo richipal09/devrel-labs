@@ -4,7 +4,7 @@ Estimated Time: 10 minutes
 
 ## Introduction
 
-In this lab, we will quickly prepare the infrastructure for manually training our Computer Vision model **in the next workshop**. This directly relates to the next workshop, where I will teach you how to do the things we've done with RoboFlow in this workshop (training, data augmentation), but using 100% open-source code.
+In this lab, we will quickly prepare the infrastructure that we need to manually train our Computer Vision model **in the next workshop**. From this infrastructure, we will learn how to do the things that we've done with RoboFlow during *this* workshop (training, data augmentation), but using 100% open-source code.
 
 The OCI service that we'll use for this is **OCI Compute**. 
 
@@ -68,7 +68,6 @@ First, set up a new session, making sure to specify the remote host (IP address)
 Now, just click on "Quick Connect" and connect:
 
 ![access instance - mobaxterm 2](./images/access_instance_mobaxterm_2.png)
-
 
 
 > **Note**: we will connect to our VM  and start training / augmenting our data with open-source repositories. 
