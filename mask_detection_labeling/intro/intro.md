@@ -17,7 +17,7 @@ Today, we're going to create a *computer vision model*, which will detect differ
 
 ![validation batch - girl](./images/val_batch0_labels.jpg)
 
-> **Note**: as you can see, the little girl on the second row, third column is wearing the mask with their nose showing, which is *incorrect*. We want our custom model to detect cases like these, which are also the hardest to represent, as there are a lot of pictures of people with and without masks, but there aren't as many of people wearing masks incorrectly on the Internet; which causes our dataset to be imbalanced.
+> **Note**: as you can see, the little girl in the second row and third column is wearing the mask with their nose showing, which is *incorrect*. We want our custom model to detect cases like these, which are also the hardest to represent, as there are a lot of pictures of people with and without masks, but there aren't as many pictures of people wearing masks incorrectly on the Internet; which causes our dataset to be imbalanced.
 
 ## Task 1: Final Result
 
@@ -58,4 +58,4 @@ You may now [proceed to the next lab](#next).
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - February 27th, 2023
+* **Last Updated By/Date** - March 6th, 2023

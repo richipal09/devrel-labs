@@ -4,7 +4,7 @@ Estimated Time: 40 minutes
 
 ## Overview
 
-We are going to use **RoboFlow** as our data platform for this workshop. The good thing about RoboFlow is that it eases the process of labeling and extracting data - in some ways, it works as a data store of hundreds, even thousands of projects like mine, with thousands of imagesa each; and all of these projects are **public** (meaning, we can use someone else's data to help us solve the problem).
+We are going to use **RoboFlow** as our data platform for this workshop. The good thing about RoboFlow is that it eases the process of labeling and extracting data - in some ways, it works as a data store of hundreds, even thousands of projects like mine, with thousands of images each; and all of these projects are **public** (meaning, we can use someone else's data to help us solve the problem).
 
 Oh, and RoboFlow is free to use for public projects - I've never had issues with lacking storage space for a project. Shoutout to the RoboFlow team for their continued support.
 
@@ -69,7 +69,7 @@ If we've done everything correctly, we should have downloaded all images from th
 
 ## Task 3: Manipulating Datasets
 
-First, let's make a quick intro on why we have all images from each dataset in one of these three aforementioned directories, and what each of these directories represent:
+First, let's make a quick intro on why we have all images from each dataset in one of these three aforementioned directories, and what each of these directories represents:
 
 - **Train**: The first type of dataset in machine learning is called the *training* dataset. This dataset is extremely important because it is used to train the model by adjusting the weights and biases of neural networks to produce accurate answers based on the inputs provided. If the training dataset is flawed or incomplete, it is very difficult to develop a good working model.
 
@@ -85,7 +85,7 @@ Let's open one of the datasets. You should see this:
 The file that holds all links and values is called `data.yaml`, with a structure like this:
 
 ![data YAML contents](./images/yaml.png)
-> **Note**: _`nc`_ represents the number of classes, with each class name in the _`names`_ list. It also contains a path to each dataset directory (it's recommended to modify these to be absolute paths, not relative ones). Also, if label names are weird or hard to understand like numbers, you can check what each labels mean by visually inspecting the dataset. For example, I looked at some pictures and made sure that the _`PasMasque`_ class actually represented a *lack* of mask, and that other classes were also correctly represented by correct, meaningful labels.
+> **Note**: _`nc`_ represents the number of classes, with each class name in the _`names`_ list. It also contains a path to each dataset directory (it's recommended to modify these to be absolute paths, not relative ones). Also, if label names are weird or hard to understand like numbers, you can check what each label mean by visually inspecting the dataset. For example, I looked at some pictures and made sure that the _`PasMasque`_ class actually represented a *lack* of a mask, and that other classes were also correctly represented by correct, meaningful labels.
 
 We need to modify this YAML file to include the names of the classes that we want, making sure that the order of the labels is also preserved.
 
@@ -114,7 +114,7 @@ Then, I click on my Mask Detection Placement model:
 
 ![Selecting my Computer Vision Model](./images/roboflow_pt_2.png)
 
-Finally, let's upload some new images to include in the model. I will upload my images by importing a YouTube video of myself; but you can use any pictures you have on your phone or computer, just make sure that you get a healthy ratio of images with different mask-wearing states (correctly, incorrectly, no mask at all).
+Finally, let's upload some new images to include in the model. I will upload my images by importing a YouTube video of myself, but you can use any pictures you have on your phone or computer, just make sure that you get a healthy ratio of images with different mask-wearing states (correctly, incorrectly, no mask at all).
 
 We need to be mindful of which **sampling rate** to choose: if we select a sampling rate that's too high, it will cause the dataset to have very similar images, as they will be taken almost one after the other. If the sampling rate is too low, we won't get enough images from the video.
 
@@ -125,7 +125,7 @@ Then, we get the selected frames from the video:
 
 ![Choosing the right sampling rate](./images/roboflow_frames.png)
 
-The last thing to do now is to **annotate** these images. We will annotate using bounding boxes (see below explanation why this is a good annotation method for our problem).
+The last thing to do now is to **annotate** these images. We will annotate using bounding boxes (see an explanation below of why this is a good annotation method for our problem).
 
 We go to the Annotate section in the toolbar:
 
@@ -153,14 +153,14 @@ We repeat this process for every image. Then, we'll choose into which dataset th
 ![choose dataset destination](./images/choose_dataset.png)
 > **Note**: I recommend 80%-10%-10% for training-validation-testing for most cases.
 
-We can now proceed to augmenting our dataset and generating a new version.
+We can now proceed to augment our dataset and generate a new version.
 
 ### Different Annotation Strategies
 
 Depending on the type of problem, you will need to have a different annotation technique. The three most common ones are:
 - Bounding Boxes: they are rectangles that surround an object and specify its position. This method is perfect for our mask placement model.
-- Polygons: this method takes more time than bounding boxes, but increases performance (accuracy), as the model will be trained on data that's been more constrained. You can annotate an image using the traditional method of drawing a bounding box, without using a polygon. This method takes less time for annotators, but results in missing some added performance. Thus, if you have the resources and you have decided polygon annotation is helpful, it is worth going the extra mile.
-- [Smart Polygons](https://blog.roboflow.com/automated-polygon-labeling-computer-vision/): RoboFlow simplifies this process by having their own Smart Annotation, which will detect an object and try to draw its edges interactively.
+- Polygons: this method takes more time than bounding boxes, but increases performance (accuracy), as the model will be trained on data that's been more constrained. You can annotate an image using the traditional method of drawing a bounding box, without using a polygon. This method takes less time for annotators but results in missing some added performance. Thus, if you have the resources and you have decided polygon annotation is helpful, it is worth going the extra mile.
+- [Smart Polygons](https://blog.roboflow.com/automated-polygon-labeling-computer-vision/): RoboFlow simplifies this process by having its own Smart Annotation, which will detect an object and try to draw its edges interactively.
 
 Here are three examples, one for each type of annotation:
 
@@ -215,11 +215,11 @@ Since I had some free training credits, I decided to spend one of them to see ho
 
 ![train types](./images/train_types.png)
 
-I recommend to start training from a public checkpoint, like the one from the COCO dataset, with a 46.7% mAP. This dataset has previously been trained to detect objects from the real-world, and even though it doesn't recognize mask placement, it will serve as a starting point for the Neural Network, which, despite its lack of knowledge of what a 'COVID-19 Mask' is, it's learned to detect other things, like **edges** of objects, shapes and forms. This means that the model _knows_ about the real-world, even if its knowledge is limited. So, let us try with this model first. 
+I recommend starting training from a public checkpoint, like the one from the COCO dataset, with a 46.7% mAP. This dataset has previously been trained to detect objects from the real world, and even though it doesn't recognize mask placement, it will serve as a starting point for the Neural Network, which, despite its lack of knowledge of what a 'COVID-19 Mask' is, it's learned to detect other things, like **edges** of objects, shapes, and forms. This means that the model _knows_ about the real world, even if its knowledge is limited. So, let us try this model first. 
 
 ## Task 7: Conclusions
 
-After the training process is complete (can take up to 24 hours), we can see the following:
+After the training process is complete (which can take up to 24 hours), we can see the following:
 
 ![mAPs v1](./images/after_training.png)
 
@@ -231,10 +231,9 @@ In more detail, we get average precision broken down by validation and testing s
 
 > **Note**: since the validation set had fewer pictures than the test set, and the validation set has a lower precision, this leads me to believe that the lower precision on the validation set is caused by having too few pictures, and not by the model being inaccurate on detections. We will fix this in the next article, where we will make a more balanced split for our dataset.
 
-Also note that -- across validation and test set -- the "incorrect" label has a constant precision of **49%**. This makes sense, as it's the hardest class to predict of the three - it's very easy to see the difference between someone with our without a mask, but incorrectly-placed masks are harder to detect even for us. Thus, some pictures we may fail to be recognized as humans. As great, new professionals in Computer Vision, we will take note of this and we'll find a way to improve the precision in the future - taking special care with our under-performing class.
-
+Also, note that -- across validation and test set -- the "incorrect" label has a constant precision of **49%**. This makes sense, as it's the hardest class to predict of the three - it's very easy to see the difference between someone with our without a mask, but incorrectly-placed masks are harder to detect even for us. Thus, in some pictures, we may fail to be recognized as humans. As great, new professionals in Computer Vision, we will take note of this and we'll find a way to improve the precision in the future - taking special care with our underperforming class.
 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - February 28th, 2023
+* **Last Updated By/Date** - March 6th, 2023
