@@ -45,14 +45,13 @@ Each parameter represents the following:
     * Individual Video, in which case it will perform inference frame-by-frame and merge the result into a final video file.
     * Individual Image
 
-For example, let's execute:
+For example, let us execute:
 
 ```
 <copy>
 ~/anaconda3/bin/python detect.py --weights="./models/mask_model/weights/best.pt" --img 640 --conf 0.4 --source="./videos/my_video.mp4"
 </copy>
 ```
-
 
 ## Task 2: Custom Inference with Python (Advanced)
 
@@ -74,7 +73,13 @@ Or even expand the functionality, with things like counting objects, combining s
 
 ## Task 3: Conclusions
 
-We have arrived at the end of this workshop. By this point, you should already be able to:
+We have arrived at the end of this workshop.
+
+In my case, I processed this example video against our newly-trained model, and it produced the following results:
+
+[Watch the video](youtube:LPRrbPiZ2X8)
+
+By this point, you should already be able to:
 
 &check; Use OCI to help you train your own Computer Vision models.
 
