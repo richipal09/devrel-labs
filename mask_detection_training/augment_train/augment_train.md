@@ -61,7 +61,19 @@ So, for this model, since I will use 640 pixels, we will just create a first ver
 
 ## Task 2: Augment Dataset
 
-In this part, we're going to augment our dataset. Now that we have some knowledge of the set of checkpoints and training parameters we can specify, I'm going to focus on a parameter that is **specifically created** for data augmentation: _`--hyp`__.
+In this part, we're going to augment our dataset.
+
+Image augmentation is a process through which you create new images based on existing images in your project training set. It's an effective way to boost model performance. By creating augmented images and adding them to your dataset, you can help your model learn to better identify classes, particularly in conditions that may not be well represented in your dataset.
+
+To make a decision as to what augmentations to apply and how they should be configured, we should ask yourselves the following:
+
+_What types of augmentations will generate data that is beneficial for our use case?_
+
+For example, in the case of aerial images, they might be taken in the early morning when the sun is rising, during the day when the sky is clear, during a cloudy day, and in the early evening. During these times, there will be different levels of brightness in the sky and thus in the images. Thus, modifying the brightness of images can be considered a **great** augmentation for this example.
+
+If we see a decrease in performance from our model with this augmentation, we can always roll the augmentation back by reverting back to an earlier version of our dataset.
+
+Now that we have some knowledge of the set of checkpoints and training parameters we can specify, I'm going to focus on a parameter that is **specifically created** for data augmentation: _`--hyp`_.
 
 This option allows us to specify a custom YAML file that will hold the values for all hyperparameters of our Computer Vision model.
 
@@ -81,16 +93,22 @@ Here are all available augmentations:
 
 The most notable ones are:
 - _`lr0`_: initial learning rate. If you want to use SGD optimizer, set this option to `0.01`. If you want to use ADAM, set it to `0.001`.
-- _`hsv_h`_, _`hsv_s`_, _`hsv_v`_: allows us to control HSV modifications to the image. We can either change the **H**ue, **S**aturation, or **V**alue of the image.
+- _`hsv_h`_, _`hsv_s`_, _`hsv_v`_: allows us to control HSV modifications to the image. We can either change the **H**ue, **S**aturation, or **V**alue of the image. You can effectively change the brightness of a picture by modifying the _`hsv_v`_ parameter, which carries image information about intensity.
 - _`degrees`_: it will rotate the image and let the model learn how to detect objects in different directions of the camera.
 - _`translate`_: translating the image will displace it to the right or to the left. 
 - _`scale`_: it will resize selected images (more or less % gain).
-- _`shear`_: it will create new images from a new viewing perspective. The changing axis is horizontal but works like opening a door in real life.
+- _`shear`_: it will create new images from a new viewing perspective (randomly distort an image across its horizontal or vertical axis.) The changing axis is horizontal but works like opening a door in real life. RoboFlow also supports vertical shear.
 - _`flipud`_, _`fliplr`_: they will simply take an image and flip it either "upside down" or "left to right", which will generate exact copies of the image but in reverse. This will teach the model how to detect objects from different angles of a camera. Also notice that _`flipud`_ works in very limited scenarios: mostly with satellite imagery. And _`fliplr`_ is better suited for ground pictures of any sort (which envelops 99% of Computer Vision models nowadays).
 - _`mosaic`_: this will take four images from the dataset and create a mosaic. This is particularly useful when we want to teach the model to detect smaller-than-usual objects, as each detection from the mosaic will be "harder" for the model: each object we want to predict will be represented by fewer pixels.
 - _`mixup`_: I have found this augmentation method particularly useful when training **classification** models. It will mix two images, one with more transparency and one with less, and let the model learn the differences between two _problematic_ classes.
 
 Once we create a separate YAML file for our custom augmentation, we can use it in training as a parameter by setting the _`--hyp`_ option. We'll see how to do that right below.
+
+RoboFlow also supports more augmentations. Here's an figure with their available augmentations:
+
+![augmentations offered by RoboFlow](./images/roboflow_augmentations.png)
+
+If you're particularly interested in performing additional advanced types of augmentations, [check out this video from [Jacob Solawetz](https://www.youtube.com/watch?v=r-QBawf9Eoc) illustrating even more ways you can use augmentation, like object occlusion, to improve your dataset.
 
 ## Task 3: Train Model
 
@@ -160,4 +178,4 @@ The model has a notable mAP of **70%**. This is awesome, but this can always be 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - March 6th, 2023
+* **Last Updated By/Date** - March 10th, 2023

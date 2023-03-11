@@ -1,5 +1,5 @@
 {
-  "workshoptitle": "Creating a Mask Detection Model on OCI with YOLOv5: Data Labeling with RoboFlow",
+  "workshoptitle": "Creating a COVID-19 Mask Detection Model on OCI with YOLOv5: Augmenting Data, Training and Real-Time Inference",
   "help": "ignacio.m.martinez@oracle.com",
   "tutorials": [
     {
