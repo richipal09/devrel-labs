@@ -2,6 +2,29 @@
 
 Estimated Time: 40 minutes
 
+## Introduction
+
+In this section, we're going to learn about the benefits of augmenting datasets, the different ways in which this can be achieved; and how to properly train a model using on-demand infrastructure (with Oracle Cloud Infrastructure).
+
+
+### Prerequisites
+
+* It's highly recommended to have completed [the first workshop](../../workshops/mask_detection_labeling/index.html) before starting to do this one, as we'll use some files and datasets that come from our work in the first workshop.
+
+* An [Oracle Free Tier, Paid or LiveLabs Cloud Account](https://signup.cloud.oracle.com/?language=en&sourceType=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction&intcmp=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction)
+* Active Oracle Cloud Account with available credits to use for Data Science service.
+
+
+### Objectives
+
+In this lab, you will complete the following steps:
+
+&check; Learn about Data Augmentation
+
+&check; Learn about when data augmentation is necessary, and when it isn't
+
+&check; Learn how to train a Computer Vision model
+
 ## Task 1: Hyperparameters & Checkpoints
 
 The most important part of training a model is choosing the right **hyperparameters**. In this section, I'll explain the parameters I usually use, and why these are recommended for this specific problem.
@@ -178,4 +201,4 @@ The model has a notable mAP of **70%**. This is awesome, but this can always be 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - March 10th, 2023
+* **Last Updated By/Date** - May 14th, 2023
