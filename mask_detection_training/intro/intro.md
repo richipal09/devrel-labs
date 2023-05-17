@@ -63,4 +63,4 @@ Here are three articles to get you from beginner to Computer Vision *hero*. This
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - May 15th, 2023
+* **Last Updated By/Date** - May 17th, 2023

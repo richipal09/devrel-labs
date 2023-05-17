@@ -201,4 +201,4 @@ The model has a notable mAP of **70%**. This is awesome, but this can always be 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - May 14th, 2023
+* **Last Updated By/Date** - May 17th, 2023
