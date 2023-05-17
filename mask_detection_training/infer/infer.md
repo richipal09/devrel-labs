@@ -2,7 +2,9 @@
 
 Estimated Time: 10 minutes
 
-## How can I perform Inference?
+## Introduction
+
+You may be asking yourself: how can I perform inference / how can I use my model?
 
 Note that, since training & augmentation is done, we can spin down our OCI Instance, unless we want to perform real time inference on it.
 
@@ -11,10 +13,29 @@ In my opinion, it's better to use inference on your **local computer**, as this 
 And now, we have arrived at the last lab of this workshop. This lab will teach you how to use the model in real time. 
 
 There are two notable ways to use the model:
-- Using the integrated YOLOv5 predictor and processor (beginner level)
+- Using the _integrated_ YOLOv5 predictor and processor (beginner level)
 - Using your own custom Python code (intermediate-advanced level)
 
 We'll quickly go over both of these methods so you can use which case is better for you.
+
+### Prerequisites
+
+* It's highly recommended to have completed [the first workshop](../../workshops/mask_detection_labeling/index.html) before starting to do this one, as we'll use some files and datasets that come from our work in the first workshop.
+
+* An [Oracle Free Tier, Paid or LiveLabs Cloud Account](https://signup.cloud.oracle.com/?language=en&sourceType=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction&intcmp=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction)
+* Active Oracle Cloud Account with available credits to use for Data Science service.
+
+
+### Objectives
+
+In this lab, you will complete the following steps:
+
+&check; Perform the easiest form of inference with YOLOv5
+
+&check; Perform a more advanced form of inference, with custom Python code
+
+
+
 
 ## Task 1: Inference with Integrated YOLOv5 (Beginner)
 
@@ -96,4 +117,4 @@ Stay tuned...
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - March 10th, 2023
+* **Last Updated By/Date** - May 17th, 2023

@@ -1,8 +1,9 @@
 # Introduction
 
-## Introduction
-
 Estimated Time: 5 minutes
+
+
+## Overview
 
 If you remember what we spoke about [in our last workshop](../../workshops/mask_detection_labeling/index.html), we created a Computer Vision model able to recognize whether someone was wearing their COVID-19 mask correctly, incorrectly, or simply didn't wear any mask.
 
@@ -18,31 +19,14 @@ Additionally, you will learn how to create your own model versions, which parame
 
 ### Prerequisites
 
-It's highly recommended to have completed [the first workshop](../../workshops/mask_detection_labeling/index.html) before starting to do this one, as we'll use some files and datasets that come from our work in the first workshop.
+* It's highly recommended to have completed [the first workshop](../../workshops/mask_detection_labeling/index.html) before starting to do this one, as we'll use some files and datasets that come from our work in the first workshop.
 
-### Hardware
+* An [Oracle Free Tier, Paid or LiveLabs Cloud Account](https://signup.cloud.oracle.com/?language=en&sourceType=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction&intcmp=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction)
+* Active Oracle Cloud Account with available credits to use for Data Science service.
 
-To train our YOLO models, we will learn some infrastructure. We will use Oracle Cloud Infrastructure (OCI) to satisfy our needs. We'll talk more about how to create this hardware (in case you haven't completed the [first workshop](../../workshops/mask_detection_labeling/index.html)) in the next lab.
 
-## Task 0: Download Dataset
 
-If you have completed the first workshop, please skip this section.
-
-However, if you haven't completed the [first workshop](../../workshops/mask_detection_labeling/index.html), and have your own custom final dataset ready, you can use my dataset to get started. For this, go into [the project's RoboFlow Universe URL](https://universe.roboflow.com/jasperan/public-mask-placement/dataset/4):
-
-![access dataset](./images/access_dataset.png)
-
-Once we're on this website, we choose to download the dataset **in YOLOv5 format**:
-
-![click the download button](./images/click_download_button.png)
-
-We unzip it, and make sure that our _`data.yaml`_ file looks like this:
-
-![yaml format](./images/yaml_modified.png)
-
-This file holds all links between our YOLOv5 dataset, so once we have our paths ready and verified that the class names and the number of classes are correct, we can proceed to augment and train this dataset.
-
-## Task 1: Objectives
+### Objectives
 
 In this lab, you will complete the following steps:
 
@@ -52,14 +36,20 @@ In this lab, you will complete the following steps:
 
 &check; **Use** these models with Python!
 
-## Task 2: OCI Elements
+
+### Hardware
+
+To train our YOLO models, we will learn some infrastructure. We will use Oracle Cloud Infrastructure (OCI) to satisfy our needs. We'll talk more about how to create this hardware (in case you haven't completed the [first workshop](../../workshops/mask_detection_labeling/index.html)) in the next lab.
+
+### OCI Elements
 
 This solution is designed to work mainly with OCI Compute. We will use an OCI Compute Instance to save costs (compared to other Cloud providers) and train our Computer Vision model.
 
 You can read more about the services used in the lab here:
 - [OCI Compute](https://www.oracle.com/cloud/compute/)
 
-## Task 3: Useful Resources
+
+### Useful Resources
 
 Here are three articles to get you from beginner to Computer Vision *hero*. This workshop is partly based on the content present in these Medium articles.
 
@@ -69,9 +59,8 @@ Here are three articles to get you from beginner to Computer Vision *hero*. This
 
 - [YOLOv5 and OCI: Implementing Custom PyTorch Code From Scratch](https://medium.com/oracledevs/yolov5-and-oci-implementing-custom-pytorch-code-from-scratch-7c6b82b0b6b1)
 
-You may now [proceed to the next lab](#next).
 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - March 10th, 2023
+* **Last Updated By/Date** - May 17th, 2023
