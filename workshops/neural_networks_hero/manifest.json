@@ -26,31 +26,31 @@
       "type": "dbcs"
     },
     {
-      "title": "Understand Neural Networks",
+      "title": "Lab 1: Understand Neural Networks",
       "description": "What the workshop is about",
       "filename": "../../neural_networks_hero/understand_nn/understand_nns.md",
       "type": "dbcs"
     },
     {
-      "title": "Lab 4: Think about the Problem",
+      "title": "Lab 2: Think about the Problem",
       "description": "How to think like a Data Scientist to solve the problem",
       "filename": "https://oracle-devrel.github.io/leagueoflegends-optimizer/hols/dataextraction/the_problem/problem.md",
       "type": "dbcs"
     },
     {
-      "title": "Lab 5: Create a Model",
+      "title": "Lab 3: Create a Model",
       "description": "Create Model",
       "filename": "https://oracle-devrel.github.io/leagueoflegends-optimizer/hols/dataextraction/creatingmodel/creatingmodel.md",
       "type": "dbcs"
     },
     {
-      "title": "Lab 2: Augment Dataset & Train Model",
+      "title": "Lab 4: Augment Dataset & Train Model",
       "description": "Augmenting the dataset and training the model",
       "filename": "../../mask_detection_training/augment_train/augment_train.md",
       "type": "dbcs"
     },
     {
-      "title": "Lab 3: Inference (Real-Time Predictions)",
+      "title": "Lab 5: Inference (Real-Time Predictions)",
       "description": "Using the model to make real-time predictions",
       "filename": "../../mask_detection_training/infer/infer.md",
       "type": "dbcs"
