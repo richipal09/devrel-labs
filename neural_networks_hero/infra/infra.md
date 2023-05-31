@@ -73,10 +73,11 @@ Estimated Time: 15 minutes
     ![Paste Tenancy OCID](images/paste-tenancy-ocid.png)
 
 6. Copy the output of the same command as the compartment OCID:
-    ```
+
+    ```bash
     <copy>echo $OCI_TENANCY</copy>
     ```
-    
+
     > Note: we can paste the same OCID here in both tenancy and compartment because the root compartment in a tenancy is equal to the tenancy's OCID.
 
     ![Paste Compartment OCID](images/paste-compartment-ocid.png)
@@ -92,7 +93,7 @@ Estimated Time: 15 minutes
 7. Generate a SSH key pair, by default it will create a private key on _`~/.ssh/id_rsa`_ and a public key _`~/.ssh/id_rsa.pub`_.
     It will ask to enter the path, a passphrase and confirm again the passphrase; type _[ENTER]_ to continue all three times.
 
-    ```
+    ```bash
     <copy>ssh-keygen -t rsa</copy>
     ```
 
@@ -104,7 +105,7 @@ Estimated Time: 15 minutes
 
 8. We need the public key in our notes, so keep the result of the content of the following command in your notes.
 
-    ```
+    ```bash
     <copy>cat ~/.ssh/id_rsa.pub</copy>
     ```
 
@@ -115,11 +116,11 @@ Estimated Time: 15 minutes
 10. Save the file in the Code Editor.
     ![Code Editor Save](images/code-editor-save.png)
 
-
 ## Task 3: Start Deployment
 
 1. Run the `start.sh` script
-    ```
+
+    ```bash
     <copy>./start.sh</copy>
     ```
 
@@ -137,18 +138,17 @@ Estimated Time: 15 minutes
 
     > Note: login credentials for the Data Science notebook are the same as the ones used to access Oracle Cloud Infrastructure.
 
-
 ## Task 4: Accessing Notebook
 
 Having just created our OCI Data Science environment, we need to install the necessary Python dependencies to execute our code. For that, we'll access our environment.
 
-- The easiest way is to access into the notebook **through the URL** that we previously copied from Terraform's output.
+* The easiest way is to access into the notebook **through the URL** that we previously copied from Terraform's output.
 
     ![terraform output](images/start-sh-ssh.png)
 
     If you have done it this way, make sure to **skip through to the next task**.
 
-- (Optionally) We can also access to the notebook via the OCI console, on the top left burger menu:
+* (Optionally) We can also access to the notebook via the OCI console, on the top left burger menu:
 
     ![select data science](./images/select_data_science.png)
 
@@ -168,27 +168,25 @@ Having just created our OCI Data Science environment, we need to install the nec
 
     ![jupyter environment](./images/notebook.png)
 
-
 ## Task 5: Setting up Data Science Environment
 
 We now need to load our notebook into our environment.
+
 1. Opening a **Terminal** inside the _'Other'_ section the console and re-downloading the repository again:
 
     ![open terminal](./images/open_terminal.png)
 
 2. Then, we re-clone the repository:
 
-    ```
+    ```bash
     <copy>
     git clone --branch livelabs https://github.com/oracle-devrel/leagueoflegends-optimizer.git
     </copy>
     ```
 
-
-
 3. Install the conda environment
 
-    ```
+    ```bash
     <copy>odsc conda create -n myconda</copy>
     ```
 
@@ -196,7 +194,7 @@ We now need to load our notebook into our environment.
 
 4. Activate the newly-created conda environment:
 
-    ```
+    ```bash
     <copy>
     conda activate /home/datascience/conda/myconda_v1_0
     </copy>
@@ -204,7 +202,7 @@ We now need to load our notebook into our environment.
 
 5. Install Python 3.8 within the conda environment:
 
-    ```
+    ```bash
     <copy>
     conda install -y python=3.8
     </copy>
@@ -212,7 +210,7 @@ We now need to load our notebook into our environment.
 
 6. Install Python dependencies:
 
-    ```
+    ```bash
     <copy>
     pip install -r leagueoflegends-optimizer/deps/requirements_nn.txt
     </copy>
@@ -222,8 +220,6 @@ We now need to load our notebook into our environment.
 
 After these commands, all requirements will be fulfilled and we're ready to execute our notebooks with our newly created conda environment.
 
-
-
 ## Task 6: Downloading DataSets
 
 We now need to load our datasets into our environment. For that, we reuse the terminal we created in the previous step:
@@ -232,8 +228,7 @@ We now need to load our datasets into our environment. For that, we reuse the te
 
 Then, we execute the following command, which will download all necessary datasets:
 
-
-```
+```bash
 <copy>
 wget https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/wPITlcIlqhE3VuDjIxeXyqwWTUa8o96q5jy-6gBXSNhO4OKha1A1JetWozNFZIAZ/n/axywji1aljc2/b/league-hol-ocw-datasets/o/ocw_datasets.zip && unzip ocw_datasets.zip -d /home/datascience/.
 
@@ -241,7 +236,6 @@ wget https://objectstorage.eu-frankfurt-1.oraclecloud.com/p/wPITlcIlqhE3VuDjIxeX
 ```
 
 ![unzip result](./images/unzip_result.png)
-
 
 ## Task 7: Accessing our Notebooks
 
@@ -253,7 +247,7 @@ We should now see the repository / files in our file explorer:
 
 We navigate to the _`leagueoflegends-optimizer/notebooks/`_ directory and the notebook [_`neural_networks_lol.ipynb`_](https://github.com/oracle-devrel/leagueoflegends-optimizer/blob/livelabs/notebooks/neural_networks_lol.ipynb) is the one we will review during this workshop.
 
-Let's open both of them and get to work. 
+Let's open both of them and get to work.
 
 You may now [proceed to the next lab](#next).
 
@@ -262,4 +256,4 @@ You may now [proceed to the next lab](#next).
 
 * **Author** - Nacho Martinez, Data Science Advocate @ DevRel
 * **Contributors** - Victor Martin - Product Strategy Director
-* **Last Updated By/Date** - April 20th, 2023
+* **Last Updated By/Date** - May 31st, 2023

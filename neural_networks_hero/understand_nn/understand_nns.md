@@ -26,11 +26,6 @@ This is a huge renovation that happens in your brain.
 - By the time we're teens it's gone a long way, but it hasn't finished.
 - And the part of the brain that's considered to develop last (up until 25 years old) is the very front, whith happens to be the part of the brain that sort of makes us human.
 
-The frontal cortex is a part of your brain that controls rational thought and reasoning
-
-So, when a teenager is confronted with a decision, this rational area is slower at communicating with other parts of their brain.
- So those other parts end up taking the lead. Especially the amygdala.
-
 ## Task 1: What is a Neural Network
 
 A neural network is a method in Machine Learning that *simulates* the human brain's way of thinking, and teaches computers how to process data in a way that *looks* human.
@@ -68,7 +63,7 @@ We'll also take a look at [another open-source tool](https://poloclub.github.io/
 
 ![recurrent](images/neural_network_visualization_1.gif)
 
-The example that we can see in this Neural Network is very simple and only has one input layer, one hidden layer, and one output layer. 
+The example that we can see in this Neural Network is very simple and only has one input layer, one hidden layer, and one output layer.
 
 In cases like text or image analysis, things get a bit more complicated, and usually, several pre-built layers (groups of layers that work very well together) are used to analyze this kind of data (image, text):
 

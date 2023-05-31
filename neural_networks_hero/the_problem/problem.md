@@ -125,6 +125,8 @@ This generated a lot of visualizations for me, that gave me an idea of what's ne
 
 We can see that the loss of our ML model is low enough for our model to have taken the correct approach to predict the target variable. We can confirm that the model is telling us the most important variables by checking other models' predictions as well.
 
+> **Note**: beware of **overfitting** if the validation metrics are too good!
+
 As we can see, the model is able to deduce whether we're going to win or not by just looking at four or five weighted variables. By comparing these stats to what we already have in the Live Client API, we'll determine which variables we can use from that data structure to arrive at the conclusion.
 
 Considering that we're working with time-dependent data, from the variables mentioned above, we can extract the same statistics (deaths, kills)... per minute. This will introduce the time dimension into our dataset:
