@@ -56,6 +56,12 @@
       "type": "dbcs"
     },
     {
+      "title": "The End",
+      "description": "Bye Bye",
+      "filename": "../../neural_networks_hero/end/end.md",
+      "type": "dbcs"
+    },
+    {
       "title": "Need Help?",
       "description": "Solutions to Common Problems and Directions for Receiving Live Help",
       "filename": "https://oracle-livelabs.github.io/common/labs/need-help/need-help-freetier.md"

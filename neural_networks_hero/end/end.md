@@ -1,6 +1,6 @@
 # The End
 
-Follow us if you want content like this, AI news, coding tips... in your social media timelines.
+Follow us if you want content like this, AI news, coding tips... in your social media timelines!
 
 ![victor](./images/victor_1.PNG)
 
