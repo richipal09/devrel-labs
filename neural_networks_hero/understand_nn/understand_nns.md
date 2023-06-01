@@ -1,4 +1,4 @@
-# Lab 2: Understand Neural Networks
+# Lab 1: Understand Neural Networks
 
 ## Introduction
 
