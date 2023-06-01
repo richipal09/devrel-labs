@@ -16,11 +16,8 @@ Follow me if you're interested in ML content. I promise, everything I do goes op
 
 ## 🏆 My Stats
 
-![My Public contributions](https://github-readme-stats.vercel.app/api?username=jasperan&show_icons=true&hide_border=false&theme=tokyonight&count_private=true&hide=prs,stars,contribs)
-
 ![Streak](https://github-readme-streak-stats.herokuapp.com/?user=jasperan&theme=tokyonight)
 
-![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=jasperan&layout=compact)
 
 [![Trophies](https://github-profile-trophy.vercel.app/?username=jasperan&theme=onedark)](https://github.com/jasperan)
 
@@ -29,16 +26,6 @@ Follow me if you're interested in ML content. I promise, everything I do goes op
 - [StackOverflow](https://stackoverflow.com/users/9151930/jasper?tab=profile)
 - [My Website](https://jasperan.com)
 - [LinkedIn](https://www.linkedin.com/in/jasperan/)
-
-## 👀 My Best Repositories
-
-[![WhatsApp Spy](https://github-readme-stats.vercel.app/api/pin/?username=jasperan&repo=whatsapp-osint)](https://github.com/jasperan/whatsapp-osint)
-
-[![League of Legends Optimizer](https://github-readme-stats.vercel.app/api/pin/?username=oracle-devrel&repo=leagueoflegends-optimizer)](https://github.com/oracle-devrel/leagueoflegends-optimizer)
-
-[![RedBull Analytics Hands-On Lab](https://github-readme-stats.vercel.app/api/pin/?username=oracle-devrel&repo=redbull-analytics-hol)](https://github.com/oracle-devrel/redbull-analytics-hol)
-
-[![F1'21 Telemetry](https://github-readme-stats.vercel.app/api/pin/?username=jasperan&repo=f1-telemetry-oracle)](https://github.com/jasperan/f1-telemetry-oracle)
 
 ### My Gaming ML Content
 

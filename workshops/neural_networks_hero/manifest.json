@@ -46,13 +46,13 @@
     {
       "title": "Lab 4: Augment Dataset & Train Model",
       "description": "Augmenting the dataset and training the model",
-      "filename": "../../mask_detection_training/augment_train/augment_train.md",
+      "filename": "../../neural_networks_hero/augment_train/augment_train.md",
       "type": "dbcs"
     },
     {
       "title": "Lab 5: Inference (Real-Time Predictions)",
       "description": "Using the model to make real-time predictions",
-      "filename": "../../mask_detection_training/infer/infer.md",
+      "filename": "../../neural_networks_hero/infer/infer.md",
       "type": "dbcs"
     },
     {
