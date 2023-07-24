@@ -6,14 +6,12 @@ Estimated Time: 40 minutes
 
 In this section, we're going to learn about the benefits of augmenting datasets, the different ways in which this can be achieved; and how to properly train a model using on-demand infrastructure (with Oracle Cloud Infrastructure).
 
-
 ### Prerequisites
 
 * It's highly recommended to have completed [the first workshop](../../workshops/mask_detection_labeling/index.html) before starting to do this one, as we'll use some files and datasets that come from our work in the first workshop.
 
 * An [Oracle Free Tier, Paid or LiveLabs Cloud Account](https://signup.cloud.oracle.com/?language=en&sourceType=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction&intcmp=:ow:de:ce::::RC_WWMK220210P00063:LoL_handsonLab_introduction)
 * Active Oracle Cloud Account with available credits to use for Data Science service.
-
 
 ### Objectives
 
@@ -39,7 +37,6 @@ It's important to choose the right parameters, as doing otherwise can cause terr
 
 * `--device`: specifies which CUDA device (or by default, CPU) we want to use. Since we're working with an OCI CPU Instance, let's set this to "cpu", which will perform training with the machine's CPU.
 * `--epochs`: the total number of epochs we want to train the model for. If the model doesn't find an improvement during training. I set this to 3000 epochs, although my model converged very precisely long before the 3000th epoch was done.
-    
     > **Note**: YOLOv5 (and lots of Neural Networks) implement a function called **early stopping/patience**, which will stop training before the specified number of epochs if it can't find a way to improve the mAPs (Mean Average Precision) for any class.
 
 * `--batch`: the batch size. I set this to either 16 images per batch, or 32. Setting a lower value (and considering that my dataset already has 10,000 images) is usually a *bad practice* and can cause instability.
@@ -78,7 +75,7 @@ The higher the average precision from each checkpoint, the more parameters it co
 
 YOLOv8 also has checkpoints with the above naming convention, so if you're using YOLOv8 instead of YOLOv5 you will still need to decide which checkpoint is best for your problem.
 
-Also, note that - if we want to create a model with an _`image size>640`_ - we should select those YOLOv5 checkpoints that end with the number `6` in the end.
+Also, note that - if we want to create a model with an *`image size>640`* - we should select those YOLOv5 checkpoints that end with the number `6` in the end.
 
 So, for this model, since I will use 640 pixels, we will just create a first version using **YOLOv5s**, and another one with **YOLOv5x**. You only really need to train one, but if you have extra time, it will be interesting to see the differences between two (or more) models when doing training against the same dataset.
 
@@ -90,19 +87,19 @@ Image augmentation is a process through which you create new images based on exi
 
 To make a decision as to what augmentations to apply and how they should be configured, we should ask yourselves the following:
 
-_What types of augmentations will generate data that is beneficial for our use case?_
+*What types of augmentations will generate data that is beneficial for our use case?*
 
 For example, in the case of aerial images, they might be taken in the early morning when the sun is rising, during the day when the sky is clear, during a cloudy day, and in the early evening. During these times, there will be different levels of brightness in the sky and thus in the images. Thus, modifying the brightness of images can be considered a **great** augmentation for this example.
 
 If we see a decrease in performance from our model with this augmentation, we can always roll the augmentation back by reverting back to an earlier version of our dataset.
 
-Now that we have some knowledge of the set of checkpoints and training parameters we can specify, I'm going to focus on a parameter that is **specifically created** for data augmentation: _`--hyp`_.
+Now that we have some knowledge of the set of checkpoints and training parameters we can specify, I'm going to focus on a parameter that is **specifically created** for data augmentation: *`--hyp`*.
 
 This option allows us to specify a custom YAML file that will hold the values for all hyperparameters of our Computer Vision model.
 
 In our YOLOv5 repository, we go to the default YAML path:
 
-```
+```bash
 <copy>
 cd /home/$USER/yolov5/data/hyps/
 </copy>
@@ -115,17 +112,18 @@ Here are all available augmentations:
 ![augmentation types](./images/initial_parameters.png)
 
 The most notable ones are:
-- _`lr0`_: initial learning rate. If you want to use SGD optimizer, set this option to `0.01`. If you want to use ADAM, set it to `0.001`.
-- _`hsv_h`_, _`hsv_s`_, _`hsv_v`_: allows us to control HSV modifications to the image. We can either change the **H**ue, **S**aturation, or **V**alue of the image. You can effectively change the brightness of a picture by modifying the _`hsv_v`_ parameter, which carries image information about intensity.
-- _`degrees`_: it will rotate the image and let the model learn how to detect objects in different directions of the camera.
-- _`translate`_: translating the image will displace it to the right or to the left. 
-- _`scale`_: it will resize selected images (more or less % gain).
-- _`shear`_: it will create new images from a new viewing perspective (randomly distort an image across its horizontal or vertical axis.) The changing axis is horizontal but works like opening a door in real life. RoboFlow also supports vertical shear.
-- _`flipud`_, _`fliplr`_: they will simply take an image and flip it either "upside down" or "left to right", which will generate exact copies of the image but in reverse. This will teach the model how to detect objects from different angles of a camera. Also notice that _`flipud`_ works in very limited scenarios: mostly with satellite imagery. And _`fliplr`_ is better suited for ground pictures of any sort (which envelops 99% of Computer Vision models nowadays).
-- _`mosaic`_: this will take four images from the dataset and create a mosaic. This is particularly useful when we want to teach the model to detect smaller-than-usual objects, as each detection from the mosaic will be "harder" for the model: each object we want to predict will be represented by fewer pixels.
-- _`mixup`_: I have found this augmentation method particularly useful when training **classification** models. It will mix two images, one with more transparency and one with less, and let the model learn the differences between two _problematic_ classes.
 
-Once we create a separate YAML file for our custom augmentation, we can use it in training as a parameter by setting the _`--hyp`_ option. We'll see how to do that right below.
+* *`lr0`*: initial learning rate. If you want to use SGD optimizer, set this option to `0.01`. If you want to use ADAM, set it to `0.001`.
+* *`hsv_h`*, *`hsv_s`*, *`hsv_v`*: allows us to control HSV modifications to the image. We can either change the **H**ue, **S**aturation, or **V**alue of the image. You can effectively change the brightness of a picture by modifying the *`hsv_v`* parameter, which carries image information about intensity.
+* *`degrees`*: it will rotate the image and let the model learn how to detect objects in different directions of the camera.
+* *`translate`*: translating the image will displace it to the right or to the left.
+* *`scale`*: it will resize selected images (more or less % gain).
+* *`shear`*: it will create new images from a new viewing perspective (randomly distort an image across its horizontal or vertical axis.) The changing axis is horizontal but works like opening a door in real life. RoboFlow also supports vertical shear.
+* *`flipud`*, *`fliplr`*: they will simply take an image and flip it either "upside down" or "left to right", which will generate exact copies of the image but in reverse. This will teach the model how to detect objects from different angles of a camera. Also notice that *`flipud`* works in very limited scenarios: mostly with satellite imagery. And *`fliplr`* is better suited for ground pictures of any sort (which envelops 99% of Computer Vision models nowadays).
+* *`mosaic`*: this will take four images from the dataset and create a mosaic. This is particularly useful when we want to teach the model to detect smaller-than-usual objects, as each detection from the mosaic will be "harder" for the model: each object we want to predict will be represented by fewer pixels.
+* *`mixup`*: I have found this augmentation method particularly useful when training **classification** models. It will mix two images, one with more transparency and one with less, and let the model learn the differences between two *problematic* classes.
+
+Once we create a separate YAML file for our custom augmentation, we can use it in training as a parameter by setting the *`--hyp`* option. We'll see how to do that right below.
 
 RoboFlow also supports more augmentations. Here's an figure with their available augmentations:
 
@@ -145,14 +143,15 @@ cd /home/$USER/yolov5
 
 And then, start training:
 
-```
+```bash
 <copy>
 ~/anaconda3/bin/python train.py --img 640 --data <data.yaml path in dataset> --weights <yolo checkpoint path> --name <final_training_project_name>  --save-period 25 --device cpu --batch 16 --epochs 3000
 </copy>
 ```
-> **Note**: if you don't specify a custom _`--hyp`_ file, augmentation will still happen in the background, but it won't be customizable. Refer to the YOLO checkpoint section above to see which default YAML file is used by which checkpoint by default. However, if you want to specify custom augmentations, make sure to add this option to the command above.
 
-```
+> **Note**: if you don't specify a custom *`--hyp`* file, augmentation will still happen in the background, but it won't be customizable. Refer to the YOLO checkpoint section above to see which default YAML file is used by which checkpoint by default. However, if you want to specify custom augmentations, make sure to add this option to the command above.
+
+```bash
 <copy>
 # for yolov5s
 ~/anaconda3/bin/python train.py --img 640 --data ./datasets/y5_mask_model_v1/data.yaml --weights yolov5s.pt --name markdown  --save-period 25 --device cpu --batch 16 --epochs 3000
@@ -166,11 +165,11 @@ And the model will start training. Depending on the size of the dataset, each ep
 
 ![Training GIF](./images/training.gif)
 
-For each epoch, we will have broken-down information about epoch training time and mAP for the model, so we can see how our model progresses over time. 
+For each epoch, we will have broken-down information about epoch training time and mAP for the model, so we can see how our model progresses over time.
 
 ## Task 4: Check Results
 
-After the training is done, we can have a look at the results. Visualizations are provided automatically, and they are pretty similar to what we discovered in the previous workshop using RoboFlow Train. 
+After the training is done, we can have a look at the results. Visualizations are provided automatically, and they are pretty similar to what we discovered in the previous workshop using RoboFlow Train.
 
 Some images, visualizations, and statistics about training are saved in the destination folder. With these visualizations, we can improve our understanding of our data, mean average precisions, and many other things which will help us improve the model upon the next iteration.
 
@@ -184,11 +183,11 @@ The confusion matrix tells us how many predictions from images in the validation
 
 ![confusion matrix](./images/confusion_matrix.jpg)
 
-As we have previously specified, our model autosaves its training progress every 25 epochs with the _`--save-period`_ option. This will cause the resulting directory to be about will about 1GB.
+As we have previously specified, our model autosaves its training progress every 25 epochs with the *`--save-period`* option. This will cause the resulting directory to be about will about 1GB.
 
-In the end, we only care about the best-performing models out of all the checkpoints, so let us keep _`best.pt`_ as the best model for the training we performed (the model with the highest mAP of all checkpoints) and delete all others.
+In the end, we only care about the best-performing models out of all the checkpoints, so let us keep *`best.pt`* as the best model for the training we performed (the model with the highest mAP of all checkpoints) and delete all others.
 
-The model took **168** epochs to finish (early stopping happened, so it found the best model at the 68th epoch), with an average of **10 minutes** per epoch. 
+The model took **168** epochs to finish (early stopping happened, so it found the best model at the 68th epoch), with an average of **10 minutes** per epoch.
 
 Remember that training time can be significantly reduced if you try this with a GPU. You can rent an OCI GPU at a fraction of the price you will find other GPUs in other Cloud vendors. For example, I did originally train this model with 2 OCI Compute NVIDIA V100s *just for **$2.50/hr***, and training time went from ~30 hours to about 6 hours.
 
@@ -201,4 +200,4 @@ The model has a notable mAP of **70%**. This is awesome, but this can always be 
 ## Acknowledgements
 
 * **Author** - Nacho Martinez, Data Science Advocate @ Oracle DevRel
-* **Last Updated By/Date** - May 17th, 2023
+* **Last Updated By/Date** - July 17th, 2023

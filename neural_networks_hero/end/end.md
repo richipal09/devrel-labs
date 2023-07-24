@@ -18,7 +18,6 @@ Follow me if you're interested in ML content. I promise, everything I do goes op
 
 ![Streak](https://github-readme-streak-stats.herokuapp.com/?user=jasperan&theme=tokyonight)
 
-
 [![Trophies](https://github-profile-trophy.vercel.app/?username=jasperan&theme=onedark)](https://github.com/jasperan)
 
 ## ☕ Get In Touch
