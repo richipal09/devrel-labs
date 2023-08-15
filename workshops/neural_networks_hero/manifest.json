@@ -1,0 +1,70 @@
+{
+  "workshoptitle": "Neural Networks Hero",
+  "help": "ignacio.m.martinez@oracle.com",
+  "tutorials": [
+    {
+      "title": "League of Legends Introduction",
+      "description": "What the workshop is about",
+      "filename": "../../neural_networks_hero/aboutworkshop/about.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Introduction",
+      "description": "What the workshop is about",
+      "filename": "../../neural_networks_hero/intro/intro.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Get Started",
+      "description": "Prerequisites for LiveLabs (Oracle-owned tenancies). The title of the lab and the Contents Menu title (the title above) match for Prerequisite lab. This lab is always first.",
+      "filename": "https://oracle-livelabs.github.io/common/labs/cloud-login/cloud-login.md"
+    },
+    {
+      "title": "Infrastructure",
+      "description": "What the workshop is about",
+      "filename": "https://oracle-devrel.github.io/leagueoflegends-optimizer/hols/dataextraction/infra/infra.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Lab 1: Understand Neural Networks",
+      "description": "What the workshop is about",
+      "filename": "../../neural_networks_hero/understand_nn/understand_nns.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Lab 2: Think about the Problem",
+      "description": "How to think like a Data Scientist to solve the problem",
+      "filename": "https://oracle-devrel.github.io/leagueoflegends-optimizer/hols/dataextraction/the_problem/problem.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Lab 3: Create a Model",
+      "description": "Create Model",
+      "filename": "https://oracle-devrel.github.io/leagueoflegends-optimizer/hols/dataextraction/creatingmodel/creatingmodel.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Lab 4: Augment Dataset & Train Model",
+      "description": "Augmenting the dataset and training the model",
+      "filename": "../../neural_networks_hero/augment_train/augment_train.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Lab 5: Inference (Real-Time Predictions)",
+      "description": "Using the model to make real-time predictions",
+      "filename": "../../neural_networks_hero/infer/infer.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "The End",
+      "description": "Bye Bye",
+      "filename": "../../neural_networks_hero/end/end.md",
+      "type": "dbcs"
+    },
+    {
+      "title": "Need Help?",
+      "description": "Solutions to Common Problems and Directions for Receiving Live Help",
+      "filename": "https://oracle-livelabs.github.io/common/labs/need-help/need-help-freetier.md"
+    }
+  ]
+}
