@@ -491,7 +491,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - In the file picker create an event. On this event, you will manage the file upload to the object storage.
 
-    ```json
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -582,7 +582,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 - Drop an input text to capture the meeting name and a button to create the meeting. So, you can associate a string variable to the input text (example meetingName). We will create the meeting metadata on the business object
 - Associate an ojAction event to the button (it's the action chain):
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -673,7 +673,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 * Now we will create another Action chain to create the transcription job using the Speech service. We will provide information as the compartment, bucket, object and we will update the Transcription table with the relevant information.
 
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -769,7 +769,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Create an Action event asociated to the button to refresh the page
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -802,7 +802,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
     ![alt text](AImeetings-md/vbcs14.jpg)
 
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -1045,7 +1045,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Action chain for sentiment detection
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -1193,7 +1193,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Action chain for summarization. We will do chunking too.
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
@@ -1342,7 +1342,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Action chain for mentions using AI Language
 
-    ```
+    ```js
     define([
       'vb/action/actionChain',
       'vb/action/actions',
