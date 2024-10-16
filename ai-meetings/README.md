@@ -1477,7 +1477,8 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 *I hope you liked it. From today you can make your meetings smarter!*
 
-Author: Jesús Brasero
+- Author: Jesús Brasero
+- Editor: Brett Terpstra
 
 
 ## License
