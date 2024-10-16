@@ -13,7 +13,7 @@ To Generate the API Keys using OCI Console:
 
 - Login into your OCI Account.
 
-    ![alt text](AImeetings-md/AImeetings-md/ak1.png)
+    ![alt text](AImeetings-md/ak1.png)
 - Click on the Profile icon at the top-right corner and select your Profile hyperlink.
 
     ![alt text](AImeetings-md/ak2.png)
@@ -30,58 +30,59 @@ To Generate the API Keys using OCI Console:
 
 
 
-# **2.Pick you compartment**
+# **2. Pick you compartment**
 Identify the compartment you're currently working within. Navigate to 'Identity' -> 'Compartments'. Locate your compartment and make a note of its OCID (Oracle Cloud Identifier)
 
 
 
-# **3.Create a bucket to store your meetings**
+# **3. Create a bucket to store your meetings**
 
 Create a bucket in your compartment. Navigate to 'Storage' -> 'Object Storage & Archive Storage' -> 'Buckets, Click on "Create bucket" button, provide for instance AI_Meetings and click on "Create".
 
-![alt text](ak6.jpg)
+![alt text](AImeetings-md/ak6.jpg)
 
 
-# **4.Open Visual Builder**
+# **4. Open Visual Builder**
+
 ## Configure access to REST APIs
 
 * Open Visual Builder and click on the "New" button. Provide a name and an ID, for example "AI_Meetings". Click on finish.
 
-    ![alt text](vbcs1.jpg)
+    ![alt text](AImeetings-md/vbcs1.jpg)
 
 * Now we are going to create a web application. Click on the first icon (web applications)
 
-    ![alt text](vbcs2.jpg)
+    ![alt text](AImeetings-md/vbcs2.jpg)
 
 * Now, click on the "+ Web Application" button
 
-    ![alt text](vbcs3.jpg)
+    ![alt text](AImeetings-md/vbcs3.jpg)
 
 * Provide an Application name, for example "AI_Meetings"
 
-    ![alt text](vbcs4.jpg)
+    ![alt text](AImeetings-md/vbcs4.jpg)
 
 * Let's do the REST Service definition. Click on "+ Service Connection" button
 
-    ![alt text](vbcs5.jpg)
+    ![alt text](AImeetings-md/vbcs5.jpg)
 
 * Choose source "Define by Endpoint"
 
-    ![alt text](vbcs6.jpg)
+    ![alt text](AImeetings-md/vbcs6.jpg)
 
 * Provide the OCI Object Storage API Endpoint, being xx-xxxxxx-x your region (example: eu-frankfurt-1). For instance https://objectstorage.xx-xxxxxx-x.oraclecloud.com/n/{namespace}/b/AI_Meetings/o/{objectName}
 
     Enter the Backend Name and select 'Oracle Cloud Infrastructure API Signature 1.0' from the Authentication dropdown menu. Then, click on the pencil icon to proceed
 
-    ![alt text](vbcs7.jpg)
+    ![alt text](AImeetings-md/vbcs7.jpg)
 
 * Enter the data obtained in step 1 in the format ocid.tenancy/ocid.user/key_fingerprint. Paste the content of the Private key file that you downloaded in the first step, then click the 'Save' button. Afterward, proceed by clicking on the 'Next' button
 
-    ![alt text](vbcs8.jpg)
+    ![alt text](AImeetings-md/vbcs8.jpg)
 
 * Include a "service name" and choose "Method" GET and set "Action Hint" to "Get one"
 
-    ![alt text](vbcs9.jpg)
+    ![alt text](AImeetings-md/vbcs9.jpg)
 
 * Click on create to finish the wizard. Now, you have an Object Storage backend.
 
@@ -457,7 +458,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 * So, finally your service connections will be something similar to this image:
 
-   ![alt text](vbcs10.jpg)
+   ![alt text](AImeetings-md/vbcs10.jpg)
 
 
 ## Create business objects
@@ -466,7 +467,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
     * Meetings: add a string field like meetingName
     * Transcriptions: add some string fields: jobID, jobName and status
 
-        ![alt text](vbcs10b.jpg)
+        ![alt text](AImeetings-md/vbcs10b.jpg)
 
 ## Build the Web App
 
@@ -482,11 +483,11 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - In the components panel, search for "file picker" and drag it onto your canvas. To enhance its appearance, click on the grid layout and switch it to "Flex" mode (found in the properties panel). Set the "Direction" to "vertical" and justify it both "center" and "middle". Next, navigate to the "All" tab, type "style" into the search bar, and provide some CSS styling such as "margin-top:30px;" to achieve the desired spacing. Drop a few components like images and texts.
 
-    ![alt text](vbcs11.jpg)
+    ![alt text](AImeetings-md/vbcs11.jpg)
 
 - In the File Picker properties panel provided the supported files that your application will support.
 
-    ![alt text](vbcs12.jpg)
+    ![alt text](AImeetings-md/vbcs12.jpg)
 
 - In the file picker create an event. On this event, you will manage the file upload to the object storage.
 
@@ -764,7 +765,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Due to it's a sync request, we are going to create a refresh button to check the current transcription status.
 
-    ![alt text](vbcs13.jpg)
+    ![alt text](AImeetings-md/vbcs13.jpg)
 
 - Create an Action event asociated to the button to refresh the page
 
@@ -798,7 +799,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - It's time to create an event listener to get the status also when your open the page. So create a vbEnter event with an Action Chain named loadData.
 
-    ![alt text](vbcs14.jpg)
+    ![alt text](AImeetings-md/vbcs14.jpg)
 
 
     ```
@@ -1465,7 +1466,7 @@ Now let's add a new service to the recently created backend OCI Speech API to re
 
 - Now, let's drop and configure some components to show the information.
 
-    ![alt text](drop.jpg)
+    ![alt text](AImeetings-md/drop.jpg)
 
 - Sample use case:
 
