@@ -1,0 +1,3 @@
+oci>=2.110.0
+pyyaml
+pandas
