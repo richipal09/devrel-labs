@@ -10,6 +10,10 @@ import os
 import pandas as pd
 from pathlib import Path
 
+import logging
+# Enable debug logging
+logging.getLogger('oci').setLevel(logging.DEBUG)
+
 def generate_job_name():
     """Generate a unique job name with timestamp"""
     current_date = datetime.date.today()
@@ -45,6 +49,11 @@ def translate_csv(ai_client, input_file, output_file, columns_to_translate, sour
             object_names=[input_file]
         )
 
+        #input_location = oci.ai_language.models.ObjectStoragePrefixLocation(
+        #    namespace_name=namespace,
+        #    bucket_name=bucket,
+        #)
+
         # Set up model metadata
         model_metadata_details = oci.ai_language.models.ModelMetadataDetails(
             model_type="PRE_TRAINED_TRANSLATION",
@@ -53,9 +62,9 @@ def translate_csv(ai_client, input_file, output_file, columns_to_translate, sour
                 "targetLanguageCodes": oci.ai_language.models.ConfigurationDetails(
                     configuration_map={"languageCodes": target_language}
                 ),
-                "properties": oci.ai_language.models.ConfigurationDetails(
-                    configuration_map={"advancedProperties": json.dumps(translation_config)}
-                )
+                #"properties": oci.ai_language.models.ConfigurationDetails(
+                #    configuration_map={"advancedProperties": json.dumps(translation_config)}
+                #)
             }
         )
 
@@ -127,9 +136,9 @@ def translate_json(ai_client, input_file, output_file, keys_to_translate, source
                 "targetLanguageCodes": oci.ai_language.models.ConfigurationDetails(
                     configuration_map={"languageCodes": target_language}
                 ),
-                "properties": oci.ai_language.models.ConfigurationDetails(
-                    configuration_map={"advancedProperties": json.dumps(translation_config)}
-                )
+                #"properties": oci.ai_language.models.ConfigurationDetails(
+                #    configuration_map={"advancedProperties": json.dumps(translation_config)}
+                #)
             }
         )
 
@@ -189,7 +198,7 @@ def main():
         config = load_config()
         
         # Initialize OCI client using default config
-        oci_config = oci.config.from_file()
+        oci_config = oci.config.from_file(profile_name="devreldev")
         ai_client = oci.ai_language.AIServiceLanguageClient(config=oci_config)
 
         # Get configuration values

@@ -1,0 +1,22 @@
+{
+    "pets": [
+      {
+        "id": 1,
+        "name": "Pochi",
+        "species": "dog",
+        "age": 5,
+        "healthStatus": "Healthy",
+        "nextVisit": "2025-02-15",
+        "comments": "次の訪問で血液検査を実施する予定。"
+      },
+      {
+        "id": 2,
+        "name": "Taro",
+        "species": "dog",
+        "age": 8,
+        "healthStatus": "Needs Monitoring",
+        "nextVisit": "2025-01-20",
+        "comments": "胃肠不調が常識化しているため、追加検査が必要。"
+      }
+    ]
+  }
