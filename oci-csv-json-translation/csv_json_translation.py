@@ -169,6 +169,7 @@ def translate_json(ai_client, input_file, output_file, keys_to_translate, source
             print(f"{datetime.datetime.now()}: Job status: {current_state}")
             
             if current_state in ["SUCCEEDED", "FAILED"]:
+                print('Job ID {}'.format(job_id))
                 break
             time.sleep(5)
 
@@ -198,7 +199,7 @@ def main():
         config = load_config()
         
         # Initialize OCI client using default config
-        oci_config = oci.config.from_file(profile_name="devreldev")
+        oci_config = oci.config.from_file(profile_name="dev")
         ai_client = oci.ai_language.AIServiceLanguageClient(config=oci_config)
 
         # Get configuration values
