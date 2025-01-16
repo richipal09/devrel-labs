@@ -10,6 +10,10 @@ The following OCI Services are present in this solution:
 - **OCI Language** for document/field translation
 - **OCI Compute** or **OCI Cloud Shell** for easily running the code present in this solution's repository, having authenticated this machine with the OCI SDK.
 
+We will use the OCI Python Source Development Kit to allow a customizable translation experience for CSV and JSON documents:
+
+<img src="./img/preview.png" width="50%">
+
 ## 0. Prerequisites and setup
 
 ### Prerequisites
@@ -102,9 +106,16 @@ The following OCI Services are present in this solution:
 ## Usage Examples
 
 ### CSV Translation
+
 ```bash
-# Translate columns 1, 3, and 5 from English to Spanish
-python csv_json_translation.py csv products.csv products_es.csv 1 3 5
+# Translate columns 1, 3, and 5 from English to Spanish, and put it into the translated_files dir
+python csv_json_translation.py csv products.csv translated_files 1 3 5
+```
+
+In my case, with the sample files in [the data directory](./data/), it would be something like:
+
+```bash
+python csv_json_translation.py csv dog_healthcare.csv translated_files 7
 ```
 
 ### JSON Translation
@@ -112,6 +123,18 @@ python csv_json_translation.py csv products.csv products_es.csv 1 3 5
 # Translate 'name' and 'details' fields in a JSON file
 python csv_json_translation.py json catalog.json catalog_es.json name details
 ```
+
+When the translation job is done, we'll be able to have a look at the translated document(s) in our Object Storage bucket:
+
+![object storage translation output](./img/os_output.png)
+
+For example, with the CSV file, it translated only the comments column as I specified, from this:
+
+![original](./img/original.png)
+
+To this:
+
+![translated](./img/translated.png)
 
 ## Annex: Configuration
 
@@ -160,7 +183,7 @@ The service supports a wide range of languages. Common language codes include:
 - Chinese Simplified (zh-CN)
 - Japanese (ja)
 
-For a complete list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/home.htm).
+For a complete list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs).
 
 ## Contributing
 
