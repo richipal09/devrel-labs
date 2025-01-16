@@ -1,4 +1,4 @@
-# OCI CSV/JSON Translation Tool
+# Translating CSV/JSON Files with OCI Language
 
 ## Introduction
 
@@ -16,7 +16,7 @@ The following OCI Services are present in this solution:
 
 - Python 3.8 or higher
 - OCI Account with Language Translation service enabled
-- Required IAM Policies and Permissions
+- Required IAM Policies and Permissions for async jobs
 - Object Storage bucket for input/output files
 - OCI CLI configured with proper credentials
 
@@ -24,10 +24,13 @@ The following OCI Services are present in this solution:
 
 - [ISO Language Codes](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes)
 - [OCI SDK](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm)
+- [Async Job Policies on IAM](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
+- [OCI Document Translation](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#translate-document)
+- [List of Supported Languages in OCI Language](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs)
 
 ### Setup
 
-1. Create an OCI account if you don't have one
+1. Create an OCI account
 2. Enable the Language Translation service in your tenancy if you haven't already
 3. Set up OCI CLI and create API keys:
 
@@ -39,11 +42,25 @@ The following OCI Services are present in this solution:
    oci setup config
    ```
 
-4. Set up the appropriate IAM policies to use the service if you haven't ([see this link for more information](https://docs.oracle.com/en-us/iaas/language/using/policies.htm))
-5. Create a bucket in Object Storage, where we'll put the file
-6. Note your Object Storage namespace (visible in the OCI Console under Object Storage)
+4. Set up the appropriate IAM policies to use the service if you haven't ([see this link for more information](https://docs.oracle.com/en-us/iaas/language/using/policies.htm)).
 
-## Getting Started
+5. Create a bucket in OCI Object Storage, where we'll put the file we want to translate.
+
+6. Set up an additional IAM policy to allow all OCI Language resources to access and read the bucket. For that, you will need to create a dynamic group, associate all OCI Language resources to that dynamic group, and give permissions to the dynamic group to read the bucket you created in the previous step. [(More info on this link)](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
+
+   First, we create the dynamic group: 
+
+   ![dynamic group creation](./img/language_dynamic_group.png)
+
+   Now, we create the policy:
+
+   ![policy creation](./img/language_policy.png)
+
+   Note that, depending on your Identity Domain, you will need to preprend the name of your Identity Domain to the group name, as demonstrated in the third policy in the image above.
+
+7. Take note of your OCI Object Storage namespace (visible in the OCI Console under Object Storage), you will need to put it in your `config.yaml` file.
+
+## 1. Getting Started
 
 1. Clone this repository:
 
@@ -63,10 +80,10 @@ The following OCI Services are present in this solution:
    # Language Translation Service Configuration
    language_translation:
      compartment_id: "ocid1.compartment.oc1..your-compartment-id"
-     source_language: "en"  # ISO language code
+     source_language: "en"  # ISO language code, refer to the Docs for all supported languages & codes
      target_language: "es"  # ISO language code
 
-   # Object Storage Configuration
+   # Object Storage Configuration # the bucket's information that will contain input & output documents
    object_storage:
      namespace: "your-namespace"  # Your tenancy's Object Storage namespace
      bucket_name: "your-bucket-name"  # Bucket for CSV/JSON translations
@@ -74,8 +91,9 @@ The following OCI Services are present in this solution:
 
 4. Run the translation:
    ```bash
-   # For CSV files (column numbers start from 1)
-   python csv_json_translation.py csv input.csv output.csv 1 2 3
+   # note the input file refers to the contents of the Object Storage bucket, not local files
+   # For CSV files (column numbers start counting from 1, not 0)
+   python csv_json_translation.py csv input.csv output.csv 1 2 3 
 
    # For JSON files
    python csv_json_translation.py json input.json output.json key1 key2
@@ -95,7 +113,7 @@ python csv_json_translation.py csv products.csv products_es.csv 1 3 5
 python csv_json_translation.py json catalog.json catalog_es.json name details
 ```
 
-## Configuration
+## Annex: Configuration
 
 The project uses three types of configuration:
 
@@ -142,20 +160,18 @@ The service supports a wide range of languages. Common language codes include:
 - Chinese Simplified (zh-CN)
 - Japanese (ja)
 
-For a complete list of supported languages, refer to the OCI Documentation.
-
-## Error Handling
-
-The tool includes comprehensive error handling:
-- Configuration validation
-- Service availability checks
-- File format validation
-- Translation status monitoring
+For a complete list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/home.htm).
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This project is open source. Please submit your contributions by forking this repository and submitting a pull request! Oracle appreciates any contributions that are made by the open source community.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+Copyright (c) 2024 Oracle and/or its affiliates.
+
+Licensed under the Universal Permissive License (UPL), Version 1.0.
+
+See [LICENSE](../LICENSE) for more details.
+
+ORACLE AND ITS AFFILIATES DO NOT PROVIDE ANY WARRANTY WHATSOEVER, EXPRESS OR IMPLIED, FOR ANY SOFTWARE, MATERIAL OR CONTENT OF ANY KIND CONTAINED OR PRODUCED WITHIN THIS REPOSITORY, AND IN PARTICULAR SPECIFICALLY DISCLAIM ANY AND ALL IMPLIED WARRANTIES OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY, AND FITNESS FOR A PARTICULAR PURPOSE. FURTHERMORE, ORACLE AND ITS AFFILIATES DO NOT REPRESENT THAT ANY CUSTOMARY SECURITY REVIEW HAS BEEN PERFORMED WITH RESPECT TO ANY SOFTWARE, MATERIAL OR CONTENT CONTAINED OR PRODUCED WITHIN THIS REPOSITORY. IN ADDITION, AND WITHOUT LIMITING THE FOREGOING, THIRD PARTIES MAY HAVE POSTED SOFTWARE, MATERIAL OR CONTENT TO THIS REPOSITORY WITHOUT ANY REVIEW. USE AT YOUR OWN RISK.
