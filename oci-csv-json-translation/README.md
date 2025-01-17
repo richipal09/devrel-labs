@@ -12,7 +12,7 @@ The following OCI Services are present in this solution:
 
 We will use the OCI Python Source Development Kit to allow a customizable translation experience for CSV and JSON documents:
 
-<img src="./img/preview.png" width="50%">
+<img src="./img/preview.png" width="60%">
 
 ## 0. Prerequisites and setup
 
