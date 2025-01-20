@@ -31,6 +31,7 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
 - [Async Job Policies on IAM](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
 - [OCI Document Translation](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#translate-document)
 - [List of Supported Languages in OCI Language](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs)
+- [List of Supported Document Types in OCI Document Translation](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#doc-types)
 
 ### Setup
 
@@ -48,7 +49,19 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
 
 4. Set up the appropriate IAM policies to use the service if you haven't ([see this link for more information](https://docs.oracle.com/en-us/iaas/language/using/policies.htm)).
 
-5. Create a bucket in OCI Object Storage, where we'll put the file we want to translate.
+5. Create a bucket in OCI Object Storage, where we'll put the file we want to translate:
+
+   ![bucket creation](./img/create_bucket.png)
+
+6. Take note of the Object Storage namespace containing the bucket(visible in the OCI Console under Object Storage), as you will need to add it to your `config.yaml`:
+
+   ![bucket namespace](./img/bucket_namespace.png)
+
+7. Upload the documents you want translated to the source bucket:
+
+   ![uploaded documents](./img/uploaded_documents.png)
+
+   > **Note**: you can find the list of supported document types and extensions for the translation service [here.](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#doc-types) 
 
 6. Set up an additional IAM policy to allow all OCI Language resources to access and read the bucket. For that, you will need to create a dynamic group, associate all OCI Language resources to that dynamic group, and give permissions to the dynamic group to read the bucket you created in the previous step. [(More info on this link)](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
 
@@ -80,6 +93,7 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
    ```
 
 3. Update `config.yaml` with your settings:
+
    ```yaml
    # Language Translation Service Configuration
    language_translation:
@@ -94,6 +108,7 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
    ```
 
 4. Run the translation:
+
    ```bash
    # note the input file refers to the contents of the Object Storage bucket, not local files
    # For CSV files (column numbers start counting from 1, not 0)
@@ -119,6 +134,7 @@ python csv_json_translation.py csv dog_healthcare.csv translated_files 7
 ```
 
 ### JSON Translation
+
 ```bash
 # Translate 'name' and 'details' fields in a JSON file
 python csv_json_translation.py json catalog.json catalog_es.json name details
