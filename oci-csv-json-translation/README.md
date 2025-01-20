@@ -63,7 +63,7 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
 
    > **Note**: you can find the list of supported document types and extensions for the translation service [here.](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#doc-types) 
 
-6. Set up an additional IAM policy to allow all OCI Language resources to access and read the bucket. For that, you will need to create a dynamic group, associate all OCI Language resources to that dynamic group, and give permissions to the dynamic group to read the bucket you created in the previous step. [(More info on this link)](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
+8. Set up an additional IAM policy to allow all OCI Language resources to access and read the bucket. For that, you will need to create a dynamic group, associate all OCI Language resources to that dynamic group, and give permissions to the dynamic group to read the bucket you created in the previous step. [(More info on this link)](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
 
    First, we create the dynamic group: 
 
@@ -74,8 +74,6 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
    ![policy creation](./img/language_policy.png)
 
    Note that, depending on your Identity Domain, you will need to preprend the name of your Identity Domain to the group name, as demonstrated in the third policy in the image above.
-
-7. Take note of your OCI Object Storage namespace (visible in the OCI Console under Object Storage), you will need to put it in your `config.yaml` file.
 
 ## 1. Getting Started
 
