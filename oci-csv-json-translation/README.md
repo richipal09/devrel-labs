@@ -138,6 +138,8 @@ python csv_json_translation.py csv dog_healthcare.csv translated_files 7
 python csv_json_translation.py json catalog.json catalog_es.json name details
 ```
 
+![program output](./img/output.png)
+
 When the translation job is done, we'll be able to have a look at the translated document(s) in our Object Storage bucket:
 
 ![object storage translation output](./img/os_output.png)
