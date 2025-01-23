@@ -12,7 +12,7 @@ These documents can be anything from HTML documents (translating whole websites)
 
 This solution supports various document formats and maintains the original file structure in the target bucket, making it ideal for bulk document translation tasks.
 
-![preview](./img/preview.png)
+<img src="./img/preview.png" width="60%">
 
 ## 0. Prerequisites and setup
 
