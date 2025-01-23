@@ -12,6 +12,8 @@ These documents can be anything from HTML documents (translating whole websites)
 
 This solution supports various document formats and maintains the original file structure in the target bucket, making it ideal for bulk document translation tasks.
 
+![preview](./img/preview.png)
+
 ## 0. Prerequisites and setup
 
 ### Prerequisites
@@ -118,6 +120,22 @@ This solution supports various document formats and maintains the original file 
 You should get a detailed report of the whole process:
 
 ![output](./img/multiple_output.png)
+
+## 2. Results
+
+My files have been translated to my target language wholly. For example, in my PPT presentation, all elements of the presentation keep their same structure, and the text elements change. Take a look at the following comparisons between the original and translated documents:
+
+### PowerPoint Presentations
+
+![ppt original](./img/ppt_original.png)
+
+![ppt translated](./img/ppt_translated.png)
+
+### Microsoft Word Documents
+
+![docx original](./img/docx_original.png)
+
+![docx translated](./img/docx_translated.png)
 
 ## Configuration
 
