@@ -10,22 +10,29 @@ from pathlib import Path
 def load_config():
     """Load configuration from config.yaml file"""
     try:
+        print("Loading configuration from config.yaml...")
         with open("config.yaml", "r") as file:
-            return yaml.safe_load(file)
+            config = yaml.safe_load(file)
+            print("✓ Configuration loaded successfully")
+            print(f"  • Source bucket: {config['language_translation']['source_bucket']}")
+            print(f"  • Target bucket: {config['language_translation']['target_bucket']}")
+            return config
     except Exception as e:
-        print(f"Error loading config.yaml: {str(e)}")
+        print(f"✗ Error loading config.yaml: {str(e)}")
         sys.exit(1)
 
 def init_clients():
     """Initialize OCI clients"""
     try:
-        # Initialize the AI Language client using default OCI config
+        print("\nInitializing OCI clients...")
         config = oci.config.from_file()
         ai_client = oci.ai_language.AIServiceLanguageClient(config=config)
         object_storage = oci.object_storage.ObjectStorageClient(config=config)
+        print("✓ AI Language client initialized")
+        print("✓ Object Storage client initialized")
         return ai_client, object_storage
     except Exception as e:
-        print(f"Error initializing OCI clients: {str(e)}")
+        print(f"✗ Error initializing OCI clients: {str(e)}")
         sys.exit(1)
 
 def generate_job_name():
@@ -34,9 +41,28 @@ def generate_job_name():
     current_time = datetime.datetime.now()
     return f"translation_job_{current_date.strftime('%Y-%m-%d')}T{current_time.strftime('%H-%M-%S')}"
 
+def list_bucket_objects(object_storage, namespace, bucket_name):
+    """List objects in a bucket"""
+    try:
+        print(f"\nListing objects in bucket '{bucket_name}'...")
+        response = object_storage.list_objects(
+            namespace_name=namespace,
+            bucket_name=bucket_name
+        )
+        objects = [obj.name for obj in response.data.objects]
+        print(f"✓ Found {len(objects)} objects:")
+        for obj in objects:
+            print(f"  • {obj}")
+        return objects
+    except Exception as e:
+        print(f"✗ Error listing bucket objects: {str(e)}")
+        return []
+
 def translate_documents(ai_client, object_storage, config):
     """Translate all documents in the source bucket"""
     try:
+        start_time = time.time()
+        
         # Get configuration values
         compartment_id = config["language_translation"]["compartment_id"]
         source_bucket = config["language_translation"]["source_bucket"]
@@ -46,7 +72,18 @@ def translate_documents(ai_client, object_storage, config):
         
         # Get namespace
         namespace = object_storage.get_namespace().data
-        print(f"Using namespace: {namespace}")
+        print(f"\nUsing Object Storage namespace: {namespace}")
+        
+        # List source bucket contents
+        source_objects = list_bucket_objects(object_storage, namespace, source_bucket)
+        if not source_objects:
+            print("✗ No files found in source bucket. Please upload some files first.")
+            return False
+        
+        print(f"\nPreparing translation job...")
+        print(f"  • Source language: {source_language}")
+        print(f"  • Target language: {target_language}")
+        print(f"  • Files to translate: {len(source_objects)}")
         
         # Create input location for all files in the bucket
         input_location = oci.ai_language.models.ObjectStoragePrefixLocation(
@@ -72,8 +109,9 @@ def translate_documents(ai_client, object_storage, config):
         )
 
         # Create job details
+        job_name = generate_job_name()
         create_job_details = oci.ai_language.models.CreateJobDetails(
-            display_name=generate_job_name(),
+            display_name=job_name,
             compartment_id=compartment_id,
             input_location=input_location,
             model_metadata_details=[model_metadata_details],
@@ -81,37 +119,49 @@ def translate_documents(ai_client, object_storage, config):
         )
         
         # Create and submit translation job
-        print("Creating translation job...")
+        print(f"\nCreating translation job '{job_name}'...")
         job_response = ai_client.create_job(
             create_job_details=create_job_details
         )
         
         job_id = job_response.data.id
-        print(f"Translation job created with ID: {job_id}")
+        print(f"✓ Translation job created with ID: {job_id}")
         
         # Monitor job status
+        print("\nMonitoring translation progress...")
         while True:
             job_status = ai_client.get_job(job_id=job_id)
             current_state = job_status.data.lifecycle_state
-            print(f"{datetime.datetime.now()}: Job status: {current_state}")
+            print(f"  • {datetime.datetime.now().strftime('%H:%M:%S')}: Job status: {current_state}")
             
             if current_state in ["SUCCEEDED", "FAILED"]:
                 break
             time.sleep(30)
         
+        end_time = time.time()
+        duration = end_time - start_time
+        
         if current_state == "SUCCEEDED":
-            print(f"Translation completed successfully! Check the {target_bucket} bucket for results")
+            print(f"\n✓ Translation completed successfully in {duration:.1f} seconds!")
+            print(f"  • Translated files will be available in the '{target_bucket}' bucket")
+            print(f"  • Files will have the same names with language code suffix")
             return True
         else:
-            print(f"Translation failed with status: {current_state}")
+            print(f"\n✗ Translation failed after {duration:.1f} seconds")
+            print(f"  • Final status: {current_state}")
             return False
         
     except Exception as e:
-        print(f"Error during translation: {str(e)}")
+        print(f"\n✗ Error during translation: {str(e)}")
         return False
 
 def main():
     try:
+        start_time = time.time()
+        print("=" * 70)
+        print("OCI Language Multiple Document Translation".center(70))
+        print("=" * 70)
+        
         # Load configuration
         config = load_config()
         
@@ -121,13 +171,20 @@ def main():
         # Start translation
         success = translate_documents(ai_client, object_storage, config)
         
+        end_time = time.time()
+        total_duration = end_time - start_time
+        
+        print("\nSummary:")
+        print("-" * 70)
         if success:
-            print("Translation completed successfully!")
+            print("✓ Translation job completed successfully")
         else:
-            print("Translation failed.")
+            print("✗ Translation job failed")
+        print(f"Total execution time: {total_duration:.1f} seconds")
+        print("=" * 70)
             
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"\n✗ Error: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
