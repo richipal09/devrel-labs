@@ -115,6 +115,10 @@ This solution supports various document formats and maintains the original file 
    python bucket_translation.py
    ```
 
+You should get a detailed report of the whole process:
+
+![output](./img/multiple_output.png)
+
 ## Configuration
 
 The project uses two types of configuration:
