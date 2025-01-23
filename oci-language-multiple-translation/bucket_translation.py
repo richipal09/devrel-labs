@@ -162,7 +162,7 @@ def main():
         print("OCI Language Multiple Document Translation".center(70))
         print("=" * 70)
         
-        # Load configuration
+        # Load OCI configuration
         config = load_config()
         
         # Initialize clients
