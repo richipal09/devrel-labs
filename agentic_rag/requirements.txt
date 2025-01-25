@@ -1,0 +1,12 @@
+docling
+langchain
+chromadb
+python-dotenv
+openai
+pydantic
+fastapi
+uvicorn
+python-multipart
+transformers
+torch
+accelerate
