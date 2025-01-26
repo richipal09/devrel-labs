@@ -2,13 +2,13 @@
 
 ## Introduction
 
-There have been significant improvements in the world of language translation with the advancements of AI. With the advancement of Large Language Models (LLMs), we can now achieve language translation much easier than we did before.
+Advancements in AI and large language models have led to significant improvements in language translation, making it much easier.
 
-In this solution, we will use OCI Language to enable the selective translation of specific columns in CSV files or keys in CSV or JSON documents, while preserving the original structure of the file. This use case is particularly useful for localizing data files while maintaining their format and untranslated fields.
+In this solution, we’ll use Oracle Cloud Infrastructure (OCI) Language to enable the translation of specific columns in CSV files or keys in CSV and JSON documents while preserving the original structure of the files. This use case is particularly useful for localizing data files while maintaining their format and untranslated fields.
 
-The following OCI Services are present in this solution:
-- **OCI Language** for document/field translation
-- **OCI Compute** or **OCI Cloud Shell** for easily running the code present in this solution's repository, having authenticated this machine with the OCI SDK.
+The following OCI services are present in this solution:
+1. **OCI Language** for document/field translation
+2. **OCI Compute** or **OCI Cloud Shell** for easily running the code present in this solution's repository, having authenticated this instance with the OCI SDK.
 
 We will use the OCI Python Source Development Kit to allow a customizable translation experience for CSV and JSON documents:
 
@@ -28,7 +28,7 @@ We will use the OCI Python Source Development Kit to allow a customizable transl
 
 - [ISO Language Codes](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes)
 - [OCI SDK](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm)
-- [Async Job Policies on IAM](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
+- [Asynchronous Job Policies on IAM](https://docs.oracle.com/en-us/iaas/language/using/policies-async-jobs.htm)
 - [OCI Document Translation](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#translate-document)
 - [List of Supported Languages in OCI Language](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs)
 - [List of Supported Document Types in OCI Document Translation](https://docs.oracle.com/en-us/iaas/language/using/translate-document.htm#doc-types)
