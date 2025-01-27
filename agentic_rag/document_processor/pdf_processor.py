@@ -4,6 +4,8 @@ import json
 import argparse
 from docling.document_converter import DocumentConverter
 from docling.chunking import HybridChunker
+import re
+from urllib.parse import urlparse
 
 class PDFProcessor:
     def __init__(self, tokenizer: str = "BAAI/bge-small-en-v1.5"):
@@ -39,6 +41,35 @@ class PDFProcessor:
         
         except Exception as e:
             raise Exception(f"Error processing PDF {file_path}: {str(e)}")
+
+    def process_pdf_url(self, url: str) -> List[Dict[str, Any]]:
+        """Process a PDF file from a URL and return chunks of text with metadata"""
+        try:
+            # Convert PDF using Docling's built-in URL support
+            conv_result = self.converter.convert(url)
+            if not conv_result or not conv_result.document:
+                raise ValueError(f"Failed to convert PDF from URL: {url}")
+            
+            # Chunk the document
+            chunks = list(self.chunker.chunk(conv_result.document))
+            
+            # Process chunks into a standardized format
+            processed_chunks = []
+            for chunk in chunks:
+                processed_chunk = {
+                    "text": chunk["text"],
+                    "metadata": {
+                        "source": url,
+                        "headings": chunk["meta"].get("headings", []),
+                        "page_numbers": self._extract_page_numbers(chunk["meta"]),
+                    }
+                }
+                processed_chunks.append(processed_chunk)
+            
+            return processed_chunks
+        
+        except Exception as e:
+            raise Exception(f"Error processing PDF from URL {url}: {str(e)}")
     
     def process_directory(self, directory: str | Path) -> List[Dict[str, Any]]:
         """Process all PDF files in a directory"""
@@ -66,22 +97,36 @@ class PDFProcessor:
                             page_numbers.add(prov["page_no"])
         return sorted(list(page_numbers))
 
+def is_url(string: str) -> bool:
+    """Check if a string is a valid URL"""
+    try:
+        result = urlparse(string)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
+
 def main():
     parser = argparse.ArgumentParser(description="Process PDF files and extract text chunks")
-    parser.add_argument("--input", required=True, help="Input PDF file or directory")
+    parser.add_argument("--input", required=True, 
+                       help="Input PDF file, directory, or URL (http/https URLs supported)")
     parser.add_argument("--output", required=True, help="Output JSON file for chunks")
     parser.add_argument("--tokenizer", default="BAAI/bge-small-en-v1.5", help="Tokenizer to use for chunking")
     
     args = parser.parse_args()
     processor = PDFProcessor(tokenizer=args.tokenizer)
     
-    print(f"\nProcessing {'directory' if Path(args.input).is_dir() else 'file'}: {args.input}")
-    print("=" * 50)
-    
     try:
-        if Path(args.input).is_dir():
+        if is_url(args.input):
+            print(f"\nProcessing PDF from URL: {args.input}")
+            print("=" * 50)
+            chunks = processor.process_pdf_url(args.input)
+        elif Path(args.input).is_dir():
+            print(f"\nProcessing directory: {args.input}")
+            print("=" * 50)
             chunks = processor.process_directory(args.input)
         else:
+            print(f"\nProcessing file: {args.input}")
+            print("=" * 50)
             chunks = processor.process_pdf(args.input)
         
         # Save chunks to JSON
