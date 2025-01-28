@@ -34,12 +34,16 @@ class PDFProcessor:
             # Process chunks into a standardized format
             processed_chunks = []
             for chunk in chunks:
+                # Handle both dictionary and DocChunk objects
+                text = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
+                meta = chunk.meta if hasattr(chunk, 'meta') else chunk.get('meta', {})
+                
                 processed_chunk = {
-                    "text": chunk["text"],
+                    "text": text,
                     "metadata": {
                         "source": str(file_path),
-                        "headings": chunk["meta"].get("headings", []),
-                        "page_numbers": self._extract_page_numbers(chunk["meta"]),
+                        "headings": meta.get("headings", []),
+                        "page_numbers": self._extract_page_numbers(meta),
                     }
                 }
                 processed_chunks.append(processed_chunk)
@@ -63,12 +67,16 @@ class PDFProcessor:
             # Process chunks into a standardized format
             processed_chunks = []
             for chunk in chunks:
+                # Handle both dictionary and DocChunk objects
+                text = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
+                meta = chunk.meta if hasattr(chunk, 'meta') else chunk.get('meta', {})
+                
                 processed_chunk = {
-                    "text": chunk["text"],
+                    "text": text,
                     "metadata": {
                         "source": url,
-                        "headings": chunk["meta"].get("headings", []),
-                        "page_numbers": self._extract_page_numbers(chunk["meta"]),
+                        "headings": meta.get("headings", []),
+                        "page_numbers": self._extract_page_numbers(meta),
                     }
                 }
                 processed_chunks.append(processed_chunk)
@@ -115,6 +123,10 @@ def main():
     processor = PDFProcessor(tokenizer=args.tokenizer)
     
     try:
+        # Create output directory if it doesn't exist
+        output_dir = Path(args.output).parent
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
         if is_url(args.input):
             print(f"\nProcessing PDF from URL: {args.input}")
             print("=" * 50)
