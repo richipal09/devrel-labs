@@ -18,7 +18,35 @@ class PDFProcessor:
     def __init__(self, tokenizer: str = "BAAI/bge-small-en-v1.5"):
         """Initialize PDF processor with Docling components"""
         self.converter = DocumentConverter()
-        self.chunker = HybridChunker(tokenizer=tokenizer)
+        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=384)  # Reduced chunk size
+    
+    def _extract_metadata(self, meta: Any) -> Dict[str, Any]:
+        """Safely extract metadata from various object types"""
+        try:
+            if hasattr(meta, '__dict__'):
+                # If it's an object with attributes
+                return {
+                    "headings": getattr(meta, "headings", []),
+                    "page_numbers": self._extract_page_numbers(meta)
+                }
+            elif isinstance(meta, dict):
+                # If it's a dictionary
+                return {
+                    "headings": meta.get("headings", []),
+                    "page_numbers": self._extract_page_numbers(meta)
+                }
+            else:
+                # Default empty metadata
+                return {
+                    "headings": [],
+                    "page_numbers": []
+                }
+        except Exception as e:
+            print(f"Warning: Error extracting metadata: {str(e)}")
+            return {
+                "headings": [],
+                "page_numbers": []
+            }
     
     def process_pdf(self, file_path: str | Path) -> List[Dict[str, Any]]:
         """Process a PDF file and return chunks of text with metadata"""
@@ -38,13 +66,12 @@ class PDFProcessor:
                 text = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
                 meta = chunk.meta if hasattr(chunk, 'meta') else chunk.get('meta', {})
                 
+                metadata = self._extract_metadata(meta)
+                metadata["source"] = str(file_path)
+                
                 processed_chunk = {
                     "text": text,
-                    "metadata": {
-                        "source": str(file_path),
-                        "headings": meta.get("headings", []),
-                        "page_numbers": self._extract_page_numbers(meta),
-                    }
+                    "metadata": metadata
                 }
                 processed_chunks.append(processed_chunk)
             
@@ -71,13 +98,12 @@ class PDFProcessor:
                 text = chunk.text if hasattr(chunk, 'text') else chunk.get('text', '')
                 meta = chunk.meta if hasattr(chunk, 'meta') else chunk.get('meta', {})
                 
+                metadata = self._extract_metadata(meta)
+                metadata["source"] = url
+                
                 processed_chunk = {
                     "text": text,
-                    "metadata": {
-                        "source": url,
-                        "headings": meta.get("headings", []),
-                        "page_numbers": self._extract_page_numbers(meta),
-                    }
+                    "metadata": metadata
                 }
                 processed_chunks.append(processed_chunk)
             
@@ -101,16 +127,35 @@ class PDFProcessor:
         
         return all_chunks
     
-    def _extract_page_numbers(self, meta: Dict) -> List[int]:
+    def _extract_page_numbers(self, meta: Any) -> List[int]:
         """Extract page numbers from chunk metadata"""
         page_numbers = set()
-        if "doc_items" in meta:
-            for item in meta["doc_items"]:
-                if "prov" in item:
-                    for prov in item["prov"]:
-                        if "page_no" in prov:
-                            page_numbers.add(prov["page_no"])
-        return sorted(list(page_numbers))
+        try:
+            if hasattr(meta, 'doc_items'):
+                items = meta.doc_items
+            elif isinstance(meta, dict) and 'doc_items' in meta:
+                items = meta['doc_items']
+            else:
+                return []
+            
+            for item in items:
+                if hasattr(item, 'prov'):
+                    provs = item.prov
+                elif isinstance(item, dict) and 'prov' in item:
+                    provs = item['prov']
+                else:
+                    continue
+                
+                for prov in provs:
+                    if hasattr(prov, 'page_no'):
+                        page_numbers.add(prov.page_no)
+                    elif isinstance(prov, dict) and 'page_no' in prov:
+                        page_numbers.add(prov['page_no'])
+            
+            return sorted(list(page_numbers))
+        except Exception as e:
+            print(f"Warning: Error extracting page numbers: {str(e)}")
+            return []
 
 def main():
     parser = argparse.ArgumentParser(description="Process PDF files and extract text chunks")
