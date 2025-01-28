@@ -22,6 +22,23 @@ class VectorStore:
             metadata={"hnsw:space": "cosine"}
         )
     
+    def _sanitize_metadata(self, metadata: Dict) -> Dict:
+        """Sanitize metadata to ensure all values are valid types for ChromaDB"""
+        sanitized = {}
+        for key, value in metadata.items():
+            if isinstance(value, (str, int, float, bool)):
+                sanitized[key] = value
+            elif isinstance(value, list):
+                # Convert list to string representation
+                sanitized[key] = str(value)
+            elif value is None:
+                # Replace None with empty string
+                sanitized[key] = ""
+            else:
+                # Convert any other type to string
+                sanitized[key] = str(value)
+        return sanitized
+    
     def add_pdf_chunks(self, chunks: List[Dict[str, Any]], document_id: str):
         """Add chunks from a PDF document to the vector store"""
         if not chunks:
@@ -29,7 +46,7 @@ class VectorStore:
         
         # Prepare data for ChromaDB
         texts = [chunk["text"] for chunk in chunks]
-        metadatas = [chunk["metadata"] for chunk in chunks]
+        metadatas = [self._sanitize_metadata(chunk["metadata"]) for chunk in chunks]
         ids = [f"{document_id}_{i}" for i in range(len(chunks))]
         
         # Add to collection
@@ -46,7 +63,7 @@ class VectorStore:
         
         # Prepare data for ChromaDB
         texts = [chunk["text"] for chunk in chunks]
-        metadatas = [chunk["metadata"] for chunk in chunks]
+        metadatas = [self._sanitize_metadata(chunk["metadata"]) for chunk in chunks]
         ids = [f"{source_id}_{i}" for i in range(len(chunks))]
         
         # Add to collection

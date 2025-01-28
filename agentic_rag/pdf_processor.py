@@ -5,6 +5,11 @@ import argparse
 from docling.document_converter import DocumentConverter
 from docling.chunking import HybridChunker
 from urllib.parse import urlparse
+import warnings
+import transformers
+
+# Suppress the token length warning
+warnings.filterwarnings('ignore', category=UserWarning, module='transformers.generation.utils')
 
 def is_url(string: str) -> bool:
     """Check if a string is a valid URL"""
