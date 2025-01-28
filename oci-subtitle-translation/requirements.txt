@@ -1,2 +1,2 @@
-oci-sdk[ai,object_storage]>=2.110.0
+oci>=2.141.1
 pyyaml>=6.0.1 

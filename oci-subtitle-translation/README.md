@@ -70,23 +70,25 @@ This automated approach significantly reduces the time and effort required to cr
 
 ## 2. Usage
 
-The solution works in two steps:
+This solution works in two steps:
 
-1. Generate SRT from audio:
+1. First, we generate SRT from audio:
+
    ```bash
    python generate_srt_from_audio.py --input-file your_audio.mp3
    ```
 
-2. Translate the generated SRT file to multiple languages:
+2. Then, we translate the generated SRT file to multiple languages:
+
    ```bash
    python translate_srt.py --input-file input.srt
    ```
 
-## Supported Languages
+## Annex: Supported Languages
 
 The solution supports translation to the following languages:
 
-| Language | Code |
+| Language | Language Code |
 |----------|------|
 | Arabic | ar |
 | Croatian | hr |
@@ -119,6 +121,8 @@ The solution supports translation to the following languages:
 | Traditional Chinese | zh-TW |
 | Turkish | tr |
 | Vietnamese | vi |
+
+For an updated list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs).
 
 ## Contributing
 

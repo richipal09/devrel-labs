@@ -2,45 +2,43 @@
 
 An intelligent RAG (Retrieval Augmented Generation) system that uses an LLM agent to make decisions about information retrieval and response generation. The system processes PDF documents and can intelligently decide which knowledge base to query based on the user's question.
 
-## Features
+The system has the following features:
 
-- 🤖 Intelligent query routing using an LLM agent
-- 📄 PDF processing using Docling for accurate text extraction
-- 💾 Persistent vector storage using ChromaDB
-- 🔍 Smart context retrieval and response generation
-- 🚀 FastAPI-based REST API
-- 🌟 Support for both OpenAI and local open-source models
+- Intelligent query routing
+- PDF processing using Docling for accurate text extraction
+- Persistent vector storage with ChromaDB
+- Smart context retrieval and response generation
+- FastAPI-based REST API
+- Support for both OpenAI-based agents or local, transformer-based agents
 
 ## Setup
 
 1. Clone the repository and install dependencies:
 
-```bash
-git clone <repository-url>
-cd agentic-rag
-pip install -r requirements.txt
-```
+    ```bash
+    git clone https://github.com/oracle-devrel/devrel-labs.git
+    cd agentic-rag
+    pip install -r requirements.txt
+    ```
 
-2. Choose your LLM configuration:
+2. In case you're going to use the OpenAI-based agent, create a `.env` file with your OpenAI API key:
 
-   **Option 1: OpenAI (requires API key)**
-   Create a `.env` file with your OpenAI API key:
    ```bash
    OPENAI_API_KEY=your-api-key-here
    ```
 
-   **Option 2: Local Open-Source Model**
-   No additional configuration needed. The system will automatically use Mistral-7B-Instruct-v0.2.
+3. If you're planning to use the local open-source model alternative for RAG, there's no additional configuration needed. The system will automatically use `Mistral-7B-Instruct-v0.2` for text generation.
+   
+## 1. Getting Started
 
-## Usage Options
-
-You can use the system in three ways:
+You can use this solution in three ways:
 
 ### 1. Using the Complete REST API
 
 Start the API server:
+
 ```bash
-python main.py
+python -m agentic_rag.main
 ```
 
 The API will be available at `http://localhost:8000`. You can then use the API endpoints as described in the API Endpoints section below.
@@ -48,16 +46,22 @@ The API will be available at `http://localhost:8000`. You can then use the API e
 ### 2. Using Individual Components via Command Line
 
 #### Process PDFs
+
 Process a PDF file and save the chunks to a JSON file:
+
 ```bash
 # Process a single PDF
 python -m document_processor.pdf_processor --input path/to/document.pdf --output chunks.json
 
 # Process multiple PDFs in a directory
 python -m document_processor.pdf_processor --input path/to/pdf/directory --output chunks.json
+
+# Process a single PDF from a URL 
+python -m document_processor.pdf_processor --input https://example.com/document.pdf --output chunks.json
 ```
 
 #### Manage Vector Store
+
 Add documents to the vector store and query them:
 ```bash
 # Add documents from a chunks file
@@ -123,25 +127,37 @@ Content-Type: application/json
 
 Processes a query through the agentic RAG pipeline and returns a response with context.
 
-## Architecture
+## Annex: Architecture
 
 The system consists of several key components:
 
-1. **PDF Processor**: Uses Docling to extract and chunk text from PDF documents
+1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
 2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
 3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
-   - OpenAI Agent: Uses GPT-4 for high-quality responses (requires API key)
-   - Local Agent: Uses Mistral-7B for open-source alternative
+   - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an API key
+   - Local Agent: Uses `Mistral-7B` as an open-source alternative
 4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
 
 ## Hardware Requirements
 
 - For OpenAI Agent: Standard CPU machine
 - For Local Agent: 
-  - Minimum 16GB RAM
+  - Minimum 16GB RAM, recommended more than 24GBs
   - GPU with 8GB VRAM recommended for better performance
-  - Will run on CPU if GPU is not available (slower)
+  - Will run on CPU if GPU is not available, but will be significantly slower.
+
+TODO: integrate with Trafilatura to crawl web content apart from PDF
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+This project is open source. Please submit your contributions by forking this repository and submitting a pull request! Oracle appreciates any contributions that are made by the open source community.
+
+## License
+
+Copyright (c) 2024 Oracle and/or its affiliates.
+
+Licensed under the Universal Permissive License (UPL), Version 1.0.
+
+See [LICENSE](../LICENSE) for more details.
+
+ORACLE AND ITS AFFILIATES DO NOT PROVIDE ANY WARRANTY WHATSOEVER, EXPRESS OR IMPLIED, FOR ANY SOFTWARE, MATERIAL OR CONTENT OF ANY KIND CONTAINED OR PRODUCED WITHIN THIS REPOSITORY, AND IN PARTICULAR SPECIFICALLY DISCLAIM ANY AND ALL IMPLIED WARRANTIES OF TITLE, NON-INFRINGEMENT, MERCHANTABILITY, AND FITNESS FOR A PARTICULAR PURPOSE. FURTHERMORE, ORACLE AND ITS AFFILIATES DO NOT REPRESENT THAT ANY CUSTOMARY SECURITY REVIEW HAS BEEN PERFORMED WITH RESPECT TO ANY SOFTWARE, MATERIAL OR CONTENT CONTAINED OR PRODUCED WITHIN THIS REPOSITORY. IN ADDITION, AND WITHOUT LIMITING THE FOREGOING, THIRD PARTIES MAY HAVE POSTED SOFTWARE, MATERIAL OR CONTENT TO THIS REPOSITORY WITHOUT ANY REVIEW. USE AT YOUR OWN RISK.

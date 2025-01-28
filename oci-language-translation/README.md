@@ -152,7 +152,7 @@ The service supports a wide range of languages. Common language codes include:
 - Chinese Simplified (zh-CN)
 - Japanese (ja)
 
-For a complete list of supported languages, refer to the OCI Documentation.
+For a complete list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs).
 
 ## Error Handling
 
