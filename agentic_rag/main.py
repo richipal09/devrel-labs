@@ -8,6 +8,7 @@ import uuid
 
 from pdf_processor import PDFProcessor
 from store import VectorStore
+from local_rag_agent import LocalRAGAgent
 from rag_agent import RAGAgent
 
 # Load environment variables
@@ -32,10 +33,15 @@ app.add_middleware(
 # Initialize components
 pdf_processor = PDFProcessor()
 vector_store = VectorStore()
-rag_agent = RAGAgent(
-    vector_store=vector_store,
-    openai_api_key=os.getenv("OPENAI_API_KEY")
-)
+
+# Initialize RAG agent - use OpenAI if API key is available, otherwise use local model
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if openai_api_key:
+    print("\nUsing OpenAI GPT-4 for RAG...")
+    rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key)
+else:
+    print("\nOpenAI API key not found. Using local Mistral model for RAG...")
+    rag_agent = LocalRAGAgent(vector_store=vector_store)
 
 class QueryRequest(BaseModel):
     query: str

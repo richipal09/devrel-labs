@@ -9,7 +9,7 @@ The system has the following features:
 - Persistent vector storage with ChromaDB
 - Smart context retrieval and response generation
 - FastAPI-based REST API
-- Support for both OpenAI-based agents or local, transformer-based agents
+- Support for both OpenAI-based agents or local, transformer-based agents (Mistral-7B by default)
 
 ## Setup
 
@@ -21,13 +21,15 @@ The system has the following features:
     pip install -r requirements.txt
     ```
 
-2. In case you're going to use the OpenAI-based agent, create a `.env` file with your OpenAI API key:
+2. (Optional) If you want to use the OpenAI-based agent instead of the default local model, create a `.env` file with your OpenAI API key:
 
    ```bash
    OPENAI_API_KEY=your-api-key-here
    ```
 
-3. If you're planning to use the local open-source model alternative for RAG, there's no additional configuration needed. The system will automatically use `Mistral-7B-Instruct-v0.2` for text generation.
+   If no API key is provided, the system will automatically use the local Mistral-7B model for text generation.
+
+3. The system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
 ## 1. Getting Started
 
