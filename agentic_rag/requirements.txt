@@ -1,5 +1,5 @@
 docling
-langchain
+langchain-openai
 chromadb
 python-dotenv
 openai

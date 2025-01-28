@@ -6,9 +6,9 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import uuid
 
-from document_processor.pdf_processor import PDFProcessor
-from vector_store.store import VectorStore
-from agents.rag_agent import RAGAgent
+from pdf_processor import PDFProcessor
+from store import VectorStore
+from rag_agent import RAGAgent
 
 # Load environment variables
 load_dotenv()
