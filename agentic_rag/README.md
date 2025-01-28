@@ -21,7 +21,26 @@ The system has the following features:
     pip install -r requirements.txt
     ```
 
-2. (Optional) If you want to use the OpenAI-based agent instead of the default local model, create a `.env` file with your OpenAI API key:
+2. Authenticate with HuggingFace:
+   
+   The system uses Mistral-7B by default, which requires authentication with HuggingFace:
+
+   a. Create a HuggingFace account at https://huggingface.co/join
+   
+   b. Accept the Mistral-7B model terms at https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2
+   
+   c. Create an access token at https://huggingface.co/settings/tokens
+   
+   d. Login using the token:
+   ```bash
+   huggingface-cli login
+   # Or set the token as an environment variable:
+   export HUGGING_FACE_HUB_TOKEN=your_token_here
+   # On Windows:
+   set HUGGING_FACE_HUB_TOKEN=your_token_here
+   ```
+
+3. (Optional) If you want to use the OpenAI-based agent instead of the default local model, create a `.env` file with your OpenAI API key:
 
    ```bash
    OPENAI_API_KEY=your-api-key-here
@@ -29,7 +48,7 @@ The system has the following features:
 
    If no API key is provided, the system will automatically use the local Mistral-7B model for text generation.
 
-3. The system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
+4. The system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
 ## 1. Getting Started
 
