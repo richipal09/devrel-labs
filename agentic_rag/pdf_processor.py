@@ -4,6 +4,15 @@ import json
 import argparse
 from docling.document_converter import DocumentConverter
 from docling.chunking import HybridChunker
+from urllib.parse import urlparse
+
+def is_url(string: str) -> bool:
+    """Check if a string is a valid URL"""
+    try:
+        result = urlparse(string)
+        return all([result.scheme, result.netloc])
+    except:
+        return False
 
 class PDFProcessor:
     def __init__(self, tokenizer: str = "BAAI/bge-small-en-v1.5"):
