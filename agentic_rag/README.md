@@ -38,7 +38,7 @@ You can use this solution in three ways:
 Start the API server:
 
 ```bash
-python -m agentic_rag.main
+python main.py
 ```
 
 The API will be available at `http://localhost:8000`. You can then use the API endpoints as described in the API Endpoints section below.
@@ -51,13 +51,13 @@ Process a PDF file and save the chunks to a JSON file:
 
 ```bash
 # Process a single PDF
-python -m document_processor.pdf_processor --input path/to/document.pdf --output chunks.json
+python pdf_processor.py --input path/to/document.pdf --output chunks.json
 
 # Process multiple PDFs in a directory
-python -m document_processor.pdf_processor --input path/to/pdf/directory --output chunks.json
+python pdf_processor.py --input path/to/pdf/directory --output chunks.json
 
 # Process a single PDF from a URL 
-python -m document_processor.pdf_processor --input https://example.com/document.pdf --output chunks.json
+python pdf_processor.py --input https://example.com/document.pdf --output chunks.json
 ```
 
 #### Manage Vector Store
@@ -65,20 +65,20 @@ python -m document_processor.pdf_processor --input https://example.com/document.
 Add documents to the vector store and query them:
 ```bash
 # Add documents from a chunks file
-python -m vector_store.store --add chunks.json --store-path my_chroma_db
+python store.py --add chunks.json --store-path my_chroma_db
 
 # Query the vector store
-python -m vector_store.store --query "your search query" --store-path my_chroma_db
+python store.py --query "your search query" --store-path my_chroma_db
 ```
 
 #### Use RAG Agent
 Query documents using either the OpenAI or local model:
 ```bash
 # Using OpenAI (requires API key in .env)
-python -m agents.rag_agent --query "What are the main topics?" --store-path my_chroma_db
+python rag_agent.py --query "What are the main topics?" --store-path my_chroma_db
 
 # Using local Mistral model
-python -m agents.local_rag_agent --query "What are the main topics?" --store-path my_chroma_db
+python local_rag_agent.py --query "What are the main topics?" --store-path my_chroma_db
 ```
 
 ### 3. Complete Pipeline Example
@@ -86,19 +86,19 @@ python -m agents.local_rag_agent --query "What are the main topics?" --store-pat
 Here's how to process a document and query it using the local model:
 ```bash
 # 1. Process the PDF
-python -m document_processor.pdf_processor --input example.pdf --output chunks.json
+python pdf_processor.py --input example.pdf --output chunks.json
 
 # 2. Add to vector store
-python -m vector_store.store --add chunks.json --store-path my_chroma_db
+python store.py --add chunks.json --store-path my_chroma_db
 
 # 3. Query using local model
-python -m agents.local_rag_agent --query "What is the main conclusion?" --store-path my_chroma_db
+python local_rag_agent.py --query "What is the main conclusion?" --store-path my_chroma_db
 ```
 
 Or using OpenAI (requires API key):
 ```bash
 # Same steps 1 and 2 as above, then:
-python -m agents.rag_agent --query "What is the main conclusion?" --store-path my_chroma_db
+python rag_agent.py --query "What is the main conclusion?" --store-path my_chroma_db
 ```
 
 ## API Endpoints
@@ -134,7 +134,7 @@ The system consists of several key components:
 1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
 2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
 3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
-   - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an API key
+   - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an OpenAI API key
    - Local Agent: Uses `Mistral-7B` as an open-source alternative
 4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
 
