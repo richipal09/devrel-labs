@@ -4,6 +4,8 @@ import torch
 from pydantic import BaseModel, Field
 from store import VectorStore
 import argparse
+import yaml
+import os
 
 class QueryAnalysis(BaseModel):
     """Pydantic model for query analysis output"""
@@ -22,14 +24,25 @@ class LocalRAGAgent:
         """Initialize local RAG agent with vector store and local LLM"""
         self.vector_store = vector_store
         
+        # Load HuggingFace token from config
+        try:
+            with open('config.yaml', 'r') as f:
+                config = yaml.safe_load(f)
+            token = config.get('HUGGING_FACE_HUB_TOKEN')
+            if not token:
+                raise ValueError("HUGGING_FACE_HUB_TOKEN not found in config.yaml")
+        except Exception as e:
+            raise Exception(f"Failed to load HuggingFace token from config.yaml: {str(e)}")
+        
         # Load model and tokenizer
         print("\nLoading model and tokenizer...")
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.float16,
-            device_map="auto"
+            device_map="auto",
+            token=token
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
         
         # Create text generation pipeline
         self.pipeline = pipeline(
