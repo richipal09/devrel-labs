@@ -5,7 +5,7 @@ import argparse
 from chromadb.config import Settings
 
 class VectorStore:
-    def __init__(self, persist_directory: str = "chroma_db"):
+    def __init__(self, persist_directory: str = "embeddings"):
         """Initialize vector store with ChromaDB"""
         self.client = chromadb.PersistentClient(
             path=persist_directory,
@@ -113,7 +113,7 @@ def main():
     parser = argparse.ArgumentParser(description="Manage vector store")
     parser.add_argument("--add", help="JSON file containing chunks to add")
     parser.add_argument("--query", help="Query to search for")
-    parser.add_argument("--store-path", default="chroma_db", help="Path to vector store")
+    parser.add_argument("--store-path", default="embeddings", help="Path to vector store")
     
     args = parser.parse_args()
     store = VectorStore(persist_directory=args.store_path)

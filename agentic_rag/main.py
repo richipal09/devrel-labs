@@ -34,7 +34,7 @@ app.add_middleware(
 pdf_processor = PDFProcessor()
 vector_store = VectorStore()
 
-# Initialize RAG agent - use OpenAI if API key is available, otherwise use local model
+# Initialize RAG agent - use OpenAI if API key is available, otherwise use local model. by default = local model
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if openai_api_key:
     print("\nUsing OpenAI GPT-4 for RAG...")

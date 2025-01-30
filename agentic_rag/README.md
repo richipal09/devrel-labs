@@ -73,47 +73,53 @@ python pdf_processor.py --input path/to/pdf/directory --output chunks.json
 
 # Process a single PDF from a URL 
 python pdf_processor.py --input https://example.com/document.pdf --output chunks.json
+# sample pdf: https://arxiv.org/pdf/2203.06605
 ```
 
 #### Manage Vector Store
 
 Add documents to the vector store and query them:
+
 ```bash
 # Add documents from a chunks file
-python store.py --add chunks.json --store-path my_chroma_db
+python store.py --add chunks.json
 
-# Query the vector store
-python store.py --query "your search query" --store-path my_chroma_db
+# Query the vector store directly, or with local_rag_agent.py
+python store.py --query "your search query"
+python local_rag_agent.py --query "your search query"
 ```
 
 #### Use RAG Agent
-Query documents using either the OpenAI or local model:
+
+Query documents using either OpenAI or a local model:
+
 ```bash
 # Using OpenAI (requires API key in .env)
-python rag_agent.py --query "What are the main topics?" --store-path my_chroma_db
+python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 
 # Using local Mistral model
-python local_rag_agent.py --query "What are the main topics?" --store-path my_chroma_db
+python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
 ### 3. Complete Pipeline Example
 
 Here's how to process a document and query it using the local model:
+
 ```bash
 # 1. Process the PDF
 python pdf_processor.py --input example.pdf --output chunks.json
 
 # 2. Add to vector store
-python store.py --add chunks.json --store-path my_chroma_db
+python store.py --add chunks.json
 
 # 3. Query using local model
-python local_rag_agent.py --query "What is the main conclusion?" --store-path my_chroma_db
+python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
 Or using OpenAI (requires API key):
 ```bash
 # Same steps 1 and 2 as above, then:
-python rag_agent.py --query "What is the main conclusion?" --store-path my_chroma_db
+python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
 ## API Endpoints
@@ -153,11 +159,19 @@ The system consists of several key components:
    - Local Agent: Uses `Mistral-7B` as an open-source alternative
 4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
 
+The RAG Agent flow is the following:
+
+1. Analyzes query type
+2. Try to find relevant PDF context, regardless of query type
+3. If PDF context is found, use it to generate a response.
+4. If no PDF context is found OR if it's a general knowledge query, use the pre-trainedLLM directly
+5. Fall back to a "no information" response only in edge cases.
+
 ## Hardware Requirements
 
-- For OpenAI Agent: Standard CPU machine
-- For Local Agent: 
-  - Minimum 16GB RAM, recommended more than 24GBs
+- For the OpenAI Agent: Standard CPU machine
+- For the Local Agent: 
+  - Minimum 16GB RAM (recommended >24GBs)
   - GPU with 8GB VRAM recommended for better performance
   - Will run on CPU if GPU is not available, but will be significantly slower.
 
