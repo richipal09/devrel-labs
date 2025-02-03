@@ -5,11 +5,11 @@ An intelligent RAG (Retrieval Augmented Generation) system that uses an LLM agen
 The system has the following features:
 
 - Intelligent query routing
-- PDF processing using Docling for accurate text extraction
-- Persistent vector storage with ChromaDB
+- PDF processing using Docling for accurate text extraction and chunking
+- Persistent vector storage with ChromaDB (PDF and Websites)
 - Smart context retrieval and response generation
-- FastAPI-based REST API
-- Support for both OpenAI-based agents or local, transformer-based agents (Mistral-7B by default)
+- FastAPI-based REST API for document upload and querying
+- Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
 
 ## Setup
 
@@ -23,15 +23,15 @@ The system has the following features:
 
 2. Authenticate with HuggingFace:
    
-   The system uses Mistral-7B by default, which requires authentication with HuggingFace:
+   The system uses `Mistral-7B` by default, which requires authentication with HuggingFace:
 
-   a. Create a HuggingFace account [here](https://huggingface.co/join)
+   a. Create a HuggingFace account [here](https://huggingface.co/join), if you don't have one yet.
    
    b. Accept the Mistral-7B model terms & conditions [here](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2)
    
    c. Create an access token [here](https://huggingface.co/settings/tokens)
    
-   d. Create a `config.yaml` file (you can copy from `config_example.yaml`):
+   d. Create a `config.yaml` file (you can copy from `config_example.yaml`), and add your HuggingFace token:
    ```yaml
    HUGGING_FACE_HUB_TOKEN: your_token_here
    ```
@@ -42,11 +42,11 @@ The system has the following features:
    OPENAI_API_KEY=your-api-key-here
    ```
 
-4. If no API key is provided, the system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
+   If no API key is provided, the system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
 ## 1. Getting Started
 
-You can use this solution in three ways:
+You can launch this solution in three ways:
 
 ### 1. Using the Complete REST API
 
@@ -58,11 +58,11 @@ python main.py
 
 The API will be available at `http://localhost:8000`. You can then use the API endpoints as described in the API Endpoints section below.
 
-### 2. Using Individual Components via Command Line
+### 2. Using Individual Python Components via Command Line
 
 #### Process PDFs
 
-Process a PDF file and save the chunks to a JSON file:
+To process a PDF file and save the chunks to a JSON file, run:
 
 ```bash
 # Process a single PDF
@@ -75,23 +75,38 @@ python pdf_processor.py --input path/to/pdf/directory --output chunks.json
 python pdf_processor.py --input https://example.com/document.pdf --output chunks.json
 # sample pdf: https://arxiv.org/pdf/2203.06605
 ```
+#### Process Websites with Trafilatura
+
+Process a single website and save the content to a JSON file:
+```bash
+python web_processor.py --input https://example.com --output docs/web_content.json
+```
+
+Or, process multiple URLs from a file and save them into a single JSON file:
+
+```bash
+python web_processor.py --input urls.txt --output docs/web_content.json
+```
 
 #### Manage Vector Store
 
-Add documents to the vector store and query them:
+To add documents to the vector store and query them, run:
 
 ```bash
-# Add documents from a chunks file
+# Add documents from a chunks file, by default to the pdf_collection
 python store.py --add chunks.json
+# for websites, use the --add-web flag
+python store.py --add-web docs/web_content.json
 
-# Query the vector store directly, or with local_rag_agent.py
+# Query the vector store directly, both pdf and web collections
+# llm will make the best decision on which collection to query based upon your input
 python store.py --query "your search query"
 python local_rag_agent.py --query "your search query"
 ```
 
 #### Use RAG Agent
 
-Query documents using either OpenAI or a local model:
+To query documents using either OpenAI or a local model, run:
 
 ```bash
 # Using OpenAI (requires API key in .env)
@@ -103,7 +118,7 @@ python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed i
 
 ### 3. Complete Pipeline Example
 
-Here's how to process a document and query it using the local model:
+First, we process a document and query it using the local model. Then, we add the document to the vector store and query from the knowledge base to get the RAG system in action.
 
 ```bash
 # 1. Process the PDF
@@ -114,15 +129,12 @@ python store.py --add chunks.json
 
 # 3. Query using local model
 python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
-```
 
-Or using OpenAI (requires API key):
-```bash
-# Same steps 1 and 2 as above, then:
+# Or using OpenAI (requires API key):
 python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
-## API Endpoints
+## Annex: API Endpoints
 
 ### Upload PDF
 
@@ -133,7 +145,7 @@ Content-Type: multipart/form-data
 file: <pdf-file>
 ```
 
-Uploads and processes a PDF file, storing its contents in the vector database.
+This endpoint uploads and processes a PDF file, storing its contents in the vector database.
 
 ### Query
 
@@ -146,7 +158,7 @@ Content-Type: application/json
 }
 ```
 
-Processes a query through the agentic RAG pipeline and returns a response with context.
+This endpoint processes a query through the agentic RAG pipeline and returns a response with context.
 
 ## Annex: Architecture
 
@@ -164,7 +176,7 @@ The RAG Agent flow is the following:
 1. Analyzes query type
 2. Try to find relevant PDF context, regardless of query type
 3. If PDF context is found, use it to generate a response.
-4. If no PDF context is found OR if it's a general knowledge query, use the pre-trainedLLM directly
+4. If no PDF context is found OR if it's a general knowledge query, use the pre-trained LLM directly
 5. Fall back to a "no information" response only in edge cases.
 
 ## Hardware Requirements

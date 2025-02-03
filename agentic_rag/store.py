@@ -17,6 +17,10 @@ class VectorStore:
             name="pdf_documents",
             metadata={"hnsw:space": "cosine"}
         )
+        self.web_collection = self.client.get_or_create_collection(
+            name="web_documents",
+            metadata={"hnsw:space": "cosine"}
+        )
         self.general_collection = self.client.get_or_create_collection(
             name="general_knowledge",
             metadata={"hnsw:space": "cosine"}
@@ -51,6 +55,23 @@ class VectorStore:
         
         # Add to collection
         self.pdf_collection.add(
+            documents=texts,
+            metadatas=metadatas,
+            ids=ids
+        )
+    
+    def add_web_chunks(self, chunks: List[Dict[str, Any]], source_id: str):
+        """Add chunks from web content to the vector store"""
+        if not chunks:
+            return
+        
+        # Prepare data for ChromaDB
+        texts = [chunk["text"] for chunk in chunks]
+        metadatas = [self._sanitize_metadata(chunk["metadata"]) for chunk in chunks]
+        ids = [f"{source_id}_{i}" for i in range(len(chunks))]
+        
+        # Add to collection
+        self.web_collection.add(
             documents=texts,
             metadatas=metadatas,
             ids=ids
@@ -91,6 +112,24 @@ class VectorStore:
         
         return formatted_results
     
+    def query_web_collection(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
+        """Query the web documents collection"""
+        results = self.web_collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+        
+        # Format results
+        formatted_results = []
+        for i in range(len(results["documents"][0])):
+            result = {
+                "content": results["documents"][0][i],
+                "metadata": results["metadatas"][0][i]
+            }
+            formatted_results.append(result)
+        
+        return formatted_results
+    
     def query_general_collection(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """Query the general knowledge collection"""
         results = self.general_collection.query(
@@ -112,6 +151,7 @@ class VectorStore:
 def main():
     parser = argparse.ArgumentParser(description="Manage vector store")
     parser.add_argument("--add", help="JSON file containing chunks to add")
+    parser.add_argument("--add-web", help="JSON file containing web chunks to add")
     parser.add_argument("--query", help="Query to search for")
     parser.add_argument("--store-path", default="embeddings", help="Path to vector store")
     
@@ -122,16 +162,33 @@ def main():
         with open(args.add, 'r', encoding='utf-8') as f:
             chunks = json.load(f)
         store.add_pdf_chunks(chunks, document_id=args.add)
-        print(f"✓ Added {len(chunks)} chunks to vector store")
+        print(f"✓ Added {len(chunks)} PDF chunks to vector store")
+    
+    if args.add_web:
+        with open(args.add_web, 'r', encoding='utf-8') as f:
+            chunks = json.load(f)
+        store.add_web_chunks(chunks, source_id=args.add_web)
+        print(f"✓ Added {len(chunks)} web chunks to vector store")
     
     if args.query:
-        results = store.query_pdf_collection(args.query)
-        print("\nResults:")
+        # Query both collections
+        pdf_results = store.query_pdf_collection(args.query)
+        web_results = store.query_web_collection(args.query)
+        
+        print("\nPDF Results:")
         print("-" * 50)
-        for result in results:
+        for result in pdf_results:
             print(f"Content: {result['content'][:200]}...")
             print(f"Source: {result['metadata'].get('source', 'Unknown')}")
             print(f"Pages: {result['metadata'].get('page_numbers', [])}")
+            print("-" * 50)
+        
+        print("\nWeb Results:")
+        print("-" * 50)
+        for result in web_results:
+            print(f"Content: {result['content'][:200]}...")
+            print(f"Source: {result['metadata'].get('source', 'Unknown')}")
+            print(f"Title: {result['metadata'].get('title', 'Unknown')}")
             print("-" * 50)
 
 if __name__ == "__main__":
