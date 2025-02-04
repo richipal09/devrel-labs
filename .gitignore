@@ -39,3 +39,4 @@ oci-language-multiple-translation/config.yaml
 
 agentic_rag/config.yaml
 agentic_rag/chroma_db
+agentic_rag/embeddings
