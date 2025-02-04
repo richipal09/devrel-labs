@@ -124,6 +124,25 @@ The solution supports translation to the following languages:
 
 For an updated list of supported languages, refer to [the OCI Documentation](https://docs.oracle.com/en-us/iaas/language/using/translate.htm#supported-langs).
 
+## Supported Language Codes
+
+For the Speech-to-Text transcription service with GENERIC domain, the following language codes are supported:
+
+| Language | Code |
+|----------|------|
+| US English | en-US |
+| British English | en-GB |
+| Australian English | en-AU |
+| Indian English | en-IN |
+| Spanish (Spain) | es-ES |
+| Brazilian Portuguese | pt-BR |
+| Hindi (India) | hi-IN |
+| French (France) | fr-FR |
+| German (Germany) | de-DE |
+| Italian (Italy) | it-IT |
+
+Note: When using the service, make sure to use the exact language code format as shown above. Simple codes like 'en' or 'es' will not work.
+
 ## Contributing
 
 This project is open source. Please submit your contributions by forking this repository and submitting a pull request! Oracle appreciates any contributions that are made by the open source community.
