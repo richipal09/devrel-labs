@@ -45,6 +45,7 @@ else:
 
 class QueryRequest(BaseModel):
     query: str
+    use_cot: bool = False
 
 class QueryResponse(BaseModel):
     answer: str
@@ -89,6 +90,12 @@ async def upload_pdf(file: UploadFile = File(...)):
 async def query(request: QueryRequest):
     """Process a query using the RAG agent"""
     try:
+        # Reinitialize agent with CoT setting
+        if openai_api_key:
+            rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key, use_cot=request.use_cot)
+        else:
+            rag_agent = LocalRAGAgent(vector_store=vector_store, use_cot=request.use_cot)
+            
         response = rag_agent.process_query(request.query)
         return response
     except Exception as e:
