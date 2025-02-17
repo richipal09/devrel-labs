@@ -4,6 +4,7 @@ import argparse
 from typing import List, Dict, Any
 from trafilatura import fetch_url, extract, extract_metadata
 from urllib.parse import urlparse
+import re
 
 def is_url(string: str) -> bool:
     """Check if a string is a valid URL"""
@@ -13,11 +14,53 @@ def is_url(string: str) -> bool:
     except:
         return False
 
+def get_domain(url: str) -> str:
+    """Extract domain from URL"""
+    parsed = urlparse(url)
+    return parsed.netloc.lower()
+
 class WebProcessor:
     def __init__(self, chunk_size: int = 500):
         """Initialize web processor with chunk size"""
         self.chunk_size = chunk_size
+        # Define domains that need special handling
+        self.special_domains = {
+            'x.com': 'twitter',
+            'twitter.com': 'twitter',
+            'github.com': 'github'
+        }
     
+    def _handle_twitter(self, url: str) -> Dict[str, Any]:
+        """Special handling for Twitter/X URLs"""
+        # Extract tweet ID from URL
+        tweet_id = url.split('/')[-1]
+        return {
+            'text': f"Twitter/X content (Tweet ID: {tweet_id}). Note: Twitter content cannot be directly extracted. Please visit {url} to view the content.",
+            'metadata': {
+                'source': url,
+                'type': 'twitter',
+                'tweet_id': tweet_id
+            }
+        }
+    
+    def _handle_github(self, url: str) -> Dict[str, Any]:
+        """Special handling for GitHub URLs"""
+        # Extract repo info from URL
+        parts = url.split('/')
+        if len(parts) >= 5:
+            owner = parts[3]
+            repo = parts[4]
+            return {
+                'text': f"GitHub Repository: {owner}/{repo}. This is a GitHub repository. For better results, try accessing specific files or the README directly.",
+                'metadata': {
+                    'source': url,
+                    'type': 'github',
+                    'owner': owner,
+                    'repo': repo
+                }
+            }
+        return None
+
     def _chunk_text(self, text: str) -> List[str]:
         """Split text into chunks of roughly equal size"""
         # Split into sentences (roughly)
@@ -48,7 +91,20 @@ class WebProcessor:
     def process_url(self, url: str) -> List[Dict[str, Any]]:
         """Process a URL and return chunks of text with metadata"""
         try:
-            # Download and extract content
+            domain = get_domain(url)
+            
+            # Check if this domain needs special handling
+            if domain in self.special_domains:
+                handler = getattr(self, f"_handle_{self.special_domains[domain]}", None)
+                if handler:
+                    result = handler(url)
+                    if result:
+                        return [{
+                            "text": result["text"],
+                            "metadata": result["metadata"]
+                        }]
+            
+            # Standard processing for other domains
             downloaded = fetch_url(url)
             if not downloaded:
                 raise ValueError(f"Failed to fetch URL: {url}")
@@ -72,7 +128,11 @@ class WebProcessor:
                 metadata = {}
             
             if not text:
-                raise ValueError(f"No text content extracted from URL: {url}")
+                raise ValueError(f"No text content extracted from URL: {url}. This might be due to:\n" +
+                               "1. Website blocking automated access\n" +
+                               "2. Content requiring JavaScript\n" +
+                               "3. Content behind authentication\n" +
+                               "4. Website using non-standard HTML structure")
             
             # Split into chunks
             text_chunks = self._chunk_text(text)
@@ -90,7 +150,8 @@ class WebProcessor:
                         "sitename": metadata.get('sitename', ''),
                         "categories": metadata.get('categories', []),
                         "tags": metadata.get('tags', []),
-                        "chunk_id": i
+                        "chunk_id": i,
+                        "type": "webpage"
                     }
                 }
                 processed_chunks.append(processed_chunk)
