@@ -29,9 +29,10 @@ class QueryAnalysis(BaseModel):
     )
 
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False):
         """Initialize local RAG agent with vector store and local LLM"""
         self.vector_store = vector_store
+        self.use_cot = use_cot
         
         # Load HuggingFace token from config
         try:
@@ -120,7 +121,15 @@ class LocalRAGAgent:
         """Generate a response directly from the LLM without context"""
         logger.info("Generating direct response from LLM without context...")
         
-        prompt = f"""You are a helpful AI assistant. Please answer the following query to the best of your ability.
+        if self.use_cot:
+            prompt = f"""You are a helpful AI assistant. Please answer the following query using chain of thought reasoning.
+First break down the problem into steps, then solve each step to arrive at the final answer.
+
+Query: {query}
+
+Let's think about this step by step:"""
+        else:
+            prompt = f"""You are a helpful AI assistant. Please answer the following query to the best of your ability.
 If you're not confident about the answer, please say so.
 
 Query: {query}
@@ -199,7 +208,19 @@ Answer:"""
                                   for i, item in enumerate(context)])
         
         logger.info("Building prompt with context...")
-        prompt = f"""Answer the following query using the provided context. 
+        if self.use_cot:
+            prompt = f"""Answer the following query using the provided context and chain of thought reasoning.
+First break down the problem into steps, then use the context to solve each step and arrive at the final answer.
+If the context doesn't contain enough information to answer accurately, say so explicitly.
+
+Context:
+{context_str}
+
+Query: {query}
+
+Let's think about this step by step:"""
+        else:
+            prompt = f"""Answer the following query using the provided context. 
 If the context doesn't contain enough information to answer accurately, 
 say so explicitly.
 
@@ -225,6 +246,7 @@ def main():
     parser.add_argument("--store-path", default="embeddings", help="Path to the vector store")
     parser.add_argument("--model", default="mistralai/Mistral-7B-Instruct-v0.2", help="Model to use")
     parser.add_argument("--quiet", action="store_true", help="Disable verbose logging")
+    parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
     
     args = parser.parse_args()
     
@@ -241,7 +263,7 @@ def main():
         logger.info(f"Initializing vector store from: {args.store_path}")
         store = VectorStore(persist_directory=args.store_path)
         logger.info("Initializing local RAG agent...")
-        agent = LocalRAGAgent(store, model_name=args.model)
+        agent = LocalRAGAgent(store, model_name=args.model, use_cot=args.use_cot)
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)

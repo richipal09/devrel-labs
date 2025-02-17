@@ -21,9 +21,10 @@ class QueryAnalysis(BaseModel):
     )
 
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str):
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
+        self.use_cot = use_cot
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
@@ -94,18 +95,30 @@ class RAGAgent:
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
                                   for i, item in enumerate(context)])
         
-        prompt = ChatPromptTemplate.from_template(
-            """Answer the following query using the provided context. 
-            If the context doesn't contain enough information to answer accurately, 
-            say so explicitly.
-            
-            Context:
-            {context}
-            
-            Query: {query}
-            
-            Answer:"""
-        )
+        if self.use_cot:
+            template = """Answer the following query using the provided context and chain of thought reasoning.
+First break down the problem into steps, then use the context to solve each step and arrive at the final answer.
+If the context doesn't contain enough information to answer accurately, say so explicitly.
+
+Context:
+{context}
+
+Query: {query}
+
+Let's think about this step by step:"""
+        else:
+            template = """Answer the following query using the provided context. 
+If the context doesn't contain enough information to answer accurately, 
+say so explicitly.
+
+Context:
+{context}
+
+Query: {query}
+
+Answer:"""
+        
+        prompt = ChatPromptTemplate.from_template(template)
         
         messages = prompt.format_messages(context=context_str, query=query)
         response = self.llm.invoke(messages)
@@ -119,6 +132,7 @@ def main():
     parser = argparse.ArgumentParser(description="Query documents using OpenAI GPT-4")
     parser.add_argument("--query", required=True, help="Query to process")
     parser.add_argument("--store-path", default="chroma_db", help="Path to the vector store")
+    parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
     
     args = parser.parse_args()
     
@@ -135,7 +149,7 @@ def main():
     
     try:
         store = VectorStore(persist_directory=args.store_path)
-        agent = RAGAgent(store, openai_api_key=os.getenv("OPENAI_API_KEY"))
+        agent = RAGAgent(store, openai_api_key=os.getenv("OPENAI_API_KEY"), use_cot=args.use_cot)
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)
