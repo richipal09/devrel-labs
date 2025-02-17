@@ -12,3 +12,5 @@ torch
 accelerate
 pyyaml
 trafilatura
+gradio
+lxml_html_clean
