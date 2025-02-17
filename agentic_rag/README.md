@@ -10,6 +10,7 @@ The system has the following features:
 - Smart context retrieval and response generation
 - FastAPI-based REST API for document upload and querying
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
+- Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
 
 ## Setup
 
@@ -188,6 +189,53 @@ The RAG Agent flow is the following:
   - Will run on CPU if GPU is not available, but will be significantly slower.
 
 TODO: integrate with Trafilatura to crawl web content apart from PDF
+
+
+## Chain of Thought (CoT) Support
+
+The system implements Chain of Thought prompting, allowing the LLMs to break down complex queries into steps and show their reasoning process. This feature can be activated in several ways:
+
+### 1. Using the API
+
+```http
+POST /query
+Content-Type: application/json
+
+{
+    "query": "your question here",
+    "use_cot": true
+}
+```
+
+### 2. Using Command Line
+
+```bash
+# Using local Mistral model with CoT
+python local_rag_agent.py --query "your question" --use-cot
+
+# Using OpenAI with CoT
+python rag_agent.py --query "your question" --use-cot
+```
+
+### 3. Programmatically
+
+```python
+# Initialize agents with CoT enabled
+local_agent = LocalRAGAgent(vector_store, use_cot=True)
+openai_agent = RAGAgent(vector_store, openai_api_key, use_cot=True)
+```
+
+When CoT is enabled, the system will:
+1. Break down complex queries into logical steps
+2. Show the reasoning process for each step
+3. Use available context more effectively by explaining how it relates to each step
+4. Arrive at more reliable answers through structured thinking
+
+This is particularly useful for:
+- Complex analytical questions
+- Multi-step reasoning problems
+- Questions requiring detailed explanations
+- Queries that need careful consideration of multiple pieces of context
 
 ## Contributing
 
