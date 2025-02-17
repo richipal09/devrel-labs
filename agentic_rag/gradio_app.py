@@ -49,9 +49,14 @@ def process_pdf(file: tempfile._TemporaryFileWrapper) -> str:
 def process_url(url: str) -> str:
     """Process web content from URL"""
     try:
-        content = web_processor.process_url(url)
-        vector_store.add_web_content(content)
-        return f"✓ Successfully processed URL and added content to knowledge base"
+        # Process URL and get chunks
+        chunks = web_processor.process_url(url)
+        if not chunks:
+            return "✗ No content extracted from URL"
+            
+        # Add chunks to vector store with URL as source ID
+        vector_store.add_web_chunks(chunks, source_id=url)
+        return f"✓ Successfully processed URL and added {len(chunks)} chunks to knowledge base"
     except Exception as e:
         return f"✗ Error processing URL: {str(e)}"
 
