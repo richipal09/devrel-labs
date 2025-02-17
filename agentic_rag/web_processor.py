@@ -55,7 +55,21 @@ class WebProcessor:
             
             # Extract text and metadata
             text = extract(downloaded, include_comments=False, include_tables=False)
-            metadata = extract_metadata(downloaded)
+            try:
+                metadata = extract_metadata(downloaded)
+                # Convert metadata to dict if it's not already
+                if not isinstance(metadata, dict):
+                    metadata = {
+                        'title': getattr(metadata, 'title', ''),
+                        'author': getattr(metadata, 'author', ''),
+                        'date': getattr(metadata, 'date', ''),
+                        'sitename': getattr(metadata, 'sitename', ''),
+                        'categories': getattr(metadata, 'categories', []),
+                        'tags': getattr(metadata, 'tags', [])
+                    }
+            except Exception as e:
+                print(f"Warning: Metadata extraction failed: {str(e)}")
+                metadata = {}
             
             if not text:
                 raise ValueError(f"No text content extracted from URL: {url}")
