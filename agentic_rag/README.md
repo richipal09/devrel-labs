@@ -237,6 +237,37 @@ This is particularly useful for:
 - Questions requiring detailed explanations
 - Queries that need careful consideration of multiple pieces of context
 
+## Using the Gradio Interface
+
+The system provides a user-friendly web interface using Gradio, which allows you to:
+- Upload and process PDF documents
+- Process web content from URLs
+- Chat with your documents using either local or OpenAI models
+- Toggle Chain of Thought reasoning
+
+To launch the interface:
+
+```bash
+python gradio_app.py
+```
+
+This will start the Gradio server and automatically open the interface in your default browser at `http://localhost:7860`. The interface has two main tabs:
+
+1. **Document Processing**:
+   - Upload PDFs using the file uploader
+   - Process web content by entering URLs
+   - View processing status and results
+
+2. **Chat Interface**:
+   - Select between Local (Mistral) and OpenAI models
+   - Toggle Chain of Thought reasoning for more detailed responses
+   - Chat with your documents using natural language
+   - Clear chat history as needed
+
+Note: The interface will automatically detect available models based on your configuration:
+- Local Mistral model requires HuggingFace token in `config.yaml`
+- OpenAI model requires API key in `.env` file
+
 ## Contributing
 
 This project is open source. Please submit your contributions by forking this repository and submitting a pull request! Oracle appreciates any contributions that are made by the open source community.
