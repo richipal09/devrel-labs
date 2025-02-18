@@ -22,8 +22,14 @@ def is_url(string: str) -> bool:
 class PDFProcessor:
     def __init__(self, tokenizer: str = "BAAI/bge-small-en-v1.5"):
         """Initialize PDF processor with Docling components"""
+        # Suppress CUDA compilation warnings
+        warnings.filterwarnings('ignore', category=UserWarning, module='torch.utils.cpp_extension')
+        # Suppress token length warnings
+        warnings.filterwarnings('ignore', category=UserWarning, module='transformers.generation.utils')
+        warnings.filterwarnings('ignore', category=UserWarning, module='transformers.modeling_utils')
+        
         self.converter = DocumentConverter()
-        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=384)  # Reduced chunk size
+        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=256)  # Reduced chunk size for token length
     
     def _extract_metadata(self, meta: Any) -> Dict[str, Any]:
         """Safely extract metadata from various object types"""
@@ -61,8 +67,14 @@ class PDFProcessor:
             if not conv_result or not conv_result.document:
                 raise ValueError(f"Failed to convert PDF: {file_path}")
             
-            # Chunk the document
-            chunks = list(self.chunker.chunk(conv_result.document))
+            # Chunk the document with error handling
+            try:
+                chunks = list(self.chunker.chunk(conv_result.document))
+            except Exception as chunk_error:
+                print(f"Warning: Error during chunking: {str(chunk_error)}")
+                # Fallback to smaller chunk size if needed
+                self.chunker.max_chunk_size = 128
+                chunks = list(self.chunker.chunk(conv_result.document))
             
             # Process chunks into a standardized format
             processed_chunks = []
