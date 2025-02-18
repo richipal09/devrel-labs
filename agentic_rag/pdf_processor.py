@@ -7,6 +7,7 @@ from docling.chunking import HybridChunker
 from urllib.parse import urlparse
 import warnings
 import transformers
+import uuid  # Add at the top with other imports
 
 # Suppress the token length warning
 warnings.filterwarnings('ignore', category=UserWarning, module='transformers.generation.utils')
@@ -62,6 +63,9 @@ class PDFProcessor:
     def process_pdf(self, file_path: str | Path) -> List[Dict[str, Any]]:
         """Process a PDF file and return chunks of text with metadata"""
         try:
+            # Generate a unique document ID
+            document_id = str(uuid.uuid4())
+            
             # Convert PDF using Docling
             conv_result = self.converter.convert(file_path)
             if not conv_result or not conv_result.document:
@@ -85,6 +89,7 @@ class PDFProcessor:
                 
                 metadata = self._extract_metadata(meta)
                 metadata["source"] = str(file_path)
+                metadata["document_id"] = document_id  # Add document_id to metadata
                 
                 processed_chunk = {
                     "text": text,
@@ -92,7 +97,7 @@ class PDFProcessor:
                 }
                 processed_chunks.append(processed_chunk)
             
-            return processed_chunks
+            return processed_chunks, document_id  # Return both chunks and document_id
         
         except Exception as e:
             raise Exception(f"Error processing PDF {file_path}: {str(e)}")
@@ -104,6 +109,9 @@ class PDFProcessor:
             conv_result = self.converter.convert(url)
             if not conv_result or not conv_result.document:
                 raise ValueError(f"Failed to convert PDF from URL: {url}")
+            
+            # Generate a unique document ID
+            document_id = str(uuid.uuid4())
             
             # Chunk the document
             chunks = list(self.chunker.chunk(conv_result.document))
@@ -117,6 +125,7 @@ class PDFProcessor:
                 
                 metadata = self._extract_metadata(meta)
                 metadata["source"] = url
+                metadata["document_id"] = document_id
                 
                 processed_chunk = {
                     "text": text,
@@ -124,7 +133,7 @@ class PDFProcessor:
                 }
                 processed_chunks.append(processed_chunk)
             
-            return processed_chunks
+            return processed_chunks, document_id
         
         except Exception as e:
             raise Exception(f"Error processing PDF from URL {url}: {str(e)}")
@@ -133,16 +142,18 @@ class PDFProcessor:
         """Process all PDF files in a directory"""
         directory = Path(directory)
         all_chunks = []
+        document_ids = []
         
         for pdf_file in directory.glob("**/*.pdf"):
             try:
-                chunks = self.process_pdf(pdf_file)
+                chunks, doc_id = self.process_pdf(pdf_file)
                 all_chunks.extend(chunks)
-                print(f"✓ Processed {pdf_file}")
+                document_ids.append(doc_id)
+                print(f"✓ Processed {pdf_file} (ID: {doc_id})")
             except Exception as e:
                 print(f"✗ Failed to process {pdf_file}: {str(e)}")
         
-        return all_chunks
+        return all_chunks, document_ids
     
     def _extract_page_numbers(self, meta: Any) -> List[int]:
         """Extract page numbers from chunk metadata"""
@@ -192,15 +203,18 @@ def main():
         if is_url(args.input):
             print(f"\nProcessing PDF from URL: {args.input}")
             print("=" * 50)
-            chunks = processor.process_pdf_url(args.input)
+            chunks, doc_id = processor.process_pdf_url(args.input)
+            print(f"Document ID: {doc_id}")
         elif Path(args.input).is_dir():
             print(f"\nProcessing directory: {args.input}")
             print("=" * 50)
-            chunks = processor.process_directory(args.input)
+            chunks, doc_ids = processor.process_directory(args.input)
+            print(f"Document IDs: {', '.join(doc_ids)}")
         else:
             print(f"\nProcessing file: {args.input}")
             print("=" * 50)
-            chunks = processor.process_pdf(args.input)
+            chunks, doc_id = processor.process_pdf(args.input)
+            print(f"Document ID: {doc_id}")
         
         # Save chunks to JSON
         with open(args.output, 'w', encoding='utf-8') as f:
