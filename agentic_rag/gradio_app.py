@@ -60,22 +60,26 @@ def process_url(url: str) -> str:
     except Exception as e:
         return f"✗ Error processing URL: {str(e)}"
 
-def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool) -> str:
+def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool) -> List[List[str]]:
     """Process chat message using selected agent"""
     try:
         # Select appropriate agent
         agent = local_agent if agent_type == "Local (Mistral)" else openai_agent
         if not agent:
-            return "Agent not available. Please check your configuration."
+            return history + [[message, "Agent not available. Please check your configuration."]]
         
         # Set CoT option
         agent.use_cot = use_cot
         
         # Process query
         response = agent.process_query(message)
-        return response["answer"]
+        
+        # Return updated history with new message pair
+        history.append([message, response["answer"]])
+        return history
     except Exception as e:
-        return f"Error processing query: {str(e)}"
+        history.append([message, f"Error processing query: {str(e)}"])
+        return history
 
 def create_interface():
     """Create Gradio interface"""
