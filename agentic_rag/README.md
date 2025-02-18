@@ -1,5 +1,7 @@
 # Agentic RAG System
 
+## Introduction
+
 An intelligent RAG (Retrieval Augmented Generation) system that uses an LLM agent to make decisions about information retrieval and response generation. The system processes PDF documents and can intelligently decide which knowledge base to query based on the user's question.
 
 The system has the following features:
@@ -12,7 +14,23 @@ The system has the following features:
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
 - Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
 
-## Setup
+## 0. Prerequisites and setup
+
+### Prerequisites
+
+- Python 3.8 or higher
+- OpenAI API key (optional, for OpenAI-based agent)
+- HuggingFace token (optional, for local Mistral model)
+
+### Hardware Requirements
+
+- For the OpenAI Agent: Standard CPU machine
+- For the Local Agent: 
+  - Minimum 16GB RAM (recommended >24GBs)
+  - GPU with 8GB VRAM recommended for better performance
+  - Will run on CPU if GPU is not available, but will be significantly slower.
+
+### Setup
 
 1. Clone the repository and install dependencies:
 
@@ -59,7 +77,38 @@ python main.py
 
 The API will be available at `http://localhost:8000`. You can then use the API endpoints as described in the API Endpoints section below.
 
-### 2. Using Individual Python Components via Command Line
+### 2. Using the Gradio Interface
+
+The system provides a user-friendly web interface using Gradio, which allows you to:
+- Upload and process PDF documents
+- Process web content from URLs
+- Chat with your documents using either local or OpenAI models
+- Toggle Chain of Thought reasoning
+
+To launch the interface:
+
+```bash
+python gradio_app.py
+```
+
+This will start the Gradio server and automatically open the interface in your default browser at `http://localhost:7860`. The interface has two main tabs:
+
+1. **Document Processing**:
+   - Upload PDFs using the file uploader
+   - Process web content by entering URLs
+   - View processing status and results
+
+2. **Chat Interface**:
+   - Select between Local (Mistral) and OpenAI models
+   - Toggle Chain of Thought reasoning for more detailed responses
+   - Chat with your documents using natural language
+   - Clear chat history as needed
+
+Note: The interface will automatically detect available models based on your configuration:
+- Local Mistral model requires HuggingFace token in `config.yaml`
+- OpenAI model requires API key in `.env` file
+
+### 3. Using Individual Python Components via Command Line
 
 #### Process PDFs
 
@@ -76,9 +125,11 @@ python pdf_processor.py --input path/to/pdf/directory --output chunks.json
 python pdf_processor.py --input https://example.com/document.pdf --output chunks.json
 # sample pdf: https://arxiv.org/pdf/2203.06605
 ```
+
 #### Process Websites with Trafilatura
 
 Process a single website and save the content to a JSON file:
+
 ```bash
 python web_processor.py --input https://example.com --output docs/web_content.json
 ```
@@ -117,7 +168,7 @@ python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the 
 python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
-### 3. Complete Pipeline Example
+### 4. Complete Pipeline Example
 
 First, we process a document and query it using the local model. Then, we add the document to the vector store and query from the knowledge base to get the RAG system in action.
 
@@ -135,63 +186,7 @@ python local_rag_agent.py --query "Can you explain the DaGAN Approach proposed i
 python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the Depth-Aware Generative Adversarial Network for Talking Head Video Generation article?"
 ```
 
-## Annex: API Endpoints
-
-### Upload PDF
-
-```http
-POST /upload/pdf
-Content-Type: multipart/form-data
-
-file: <pdf-file>
-```
-
-This endpoint uploads and processes a PDF file, storing its contents in the vector database.
-
-### Query
-
-```http
-POST /query
-Content-Type: application/json
-
-{
-    "query": "your question here"
-}
-```
-
-This endpoint processes a query through the agentic RAG pipeline and returns a response with context.
-
-## Annex: Architecture
-
-The system consists of several key components:
-
-1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
-2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
-3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
-   - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an OpenAI API key
-   - Local Agent: Uses `Mistral-7B` as an open-source alternative
-4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
-
-The RAG Agent flow is the following:
-
-1. Analyzes query type
-2. Try to find relevant PDF context, regardless of query type
-3. If PDF context is found, use it to generate a response.
-4. If no PDF context is found OR if it's a general knowledge query, use the pre-trained LLM directly
-5. Fall back to a "no information" response only in edge cases.
-
-## Hardware Requirements
-
-- For the OpenAI Agent: Standard CPU machine
-- For the Local Agent: 
-  - Minimum 16GB RAM (recommended >24GBs)
-  - GPU with 8GB VRAM recommended for better performance
-  - Will run on CPU if GPU is not available, but will be significantly slower.
-
-TODO: integrate with Trafilatura to crawl web content apart from PDF
-
-
-## Chain of Thought (CoT) Support
+## 2. Chain of Thought (CoT) Support
 
 The system implements Chain of Thought prompting, allowing the LLMs to break down complex queries into steps and show their reasoning process. This feature can be activated in several ways:
 
@@ -237,36 +232,51 @@ This is particularly useful for:
 - Questions requiring detailed explanations
 - Queries that need careful consideration of multiple pieces of context
 
-## Using the Gradio Interface
 
-The system provides a user-friendly web interface using Gradio, which allows you to:
-- Upload and process PDF documents
-- Process web content from URLs
-- Chat with your documents using either local or OpenAI models
-- Toggle Chain of Thought reasoning
+## Annex: API Endpoints
 
-To launch the interface:
+### Upload PDF
 
-```bash
-python gradio_app.py
+```http
+POST /upload/pdf
+Content-Type: multipart/form-data
+
+file: <pdf-file>
 ```
 
-This will start the Gradio server and automatically open the interface in your default browser at `http://localhost:7860`. The interface has two main tabs:
+This endpoint uploads and processes a PDF file, storing its contents in the vector database.
 
-1. **Document Processing**:
-   - Upload PDFs using the file uploader
-   - Process web content by entering URLs
-   - View processing status and results
+### Query
 
-2. **Chat Interface**:
-   - Select between Local (Mistral) and OpenAI models
-   - Toggle Chain of Thought reasoning for more detailed responses
-   - Chat with your documents using natural language
-   - Clear chat history as needed
+```http
+POST /query
+Content-Type: application/json
 
-Note: The interface will automatically detect available models based on your configuration:
-- Local Mistral model requires HuggingFace token in `config.yaml`
-- OpenAI model requires API key in `.env` file
+{
+    "query": "your question here"
+}
+```
+
+This endpoint processes a query through the agentic RAG pipeline and returns a response with context.
+
+## Annex: Architecture
+
+The system consists of several key components:
+
+1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
+2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
+3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
+   - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an OpenAI API key
+   - Local Agent: Uses `Mistral-7B` as an open-source alternative
+4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
+
+The RAG Agent flow is the following:
+
+1. Analyzes query type
+2. Try to find relevant PDF context, regardless of query type
+3. If PDF context is found, use it to generate a response.
+4. If no PDF context is found OR if it's a general knowledge query, use the pre-trained LLM directly
+5. Fall back to a "no information" response only in edge cases.
 
 ## Contributing
 
