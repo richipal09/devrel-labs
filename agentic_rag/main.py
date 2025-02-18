@@ -66,11 +66,10 @@ async def upload_pdf(file: UploadFile = File(...)):
             buffer.write(content)
         
         # Process the PDF
-        chunks = pdf_processor.process_pdf(temp_path)
+        chunks, document_id = pdf_processor.process_pdf(temp_path)
         
         # Add chunks to vector store
-        document_id = str(uuid.uuid4())
-        vector_store.add_pdf_chunks(chunks, document_id)
+        vector_store.add_pdf_chunks(chunks, document_id=document_id)
         
         # Clean up
         os.remove(temp_path)

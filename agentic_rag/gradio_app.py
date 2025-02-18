@@ -40,9 +40,9 @@ openai_agent = RAGAgent(vector_store, openai_api_key=openai_key) if openai_key e
 def process_pdf(file: tempfile._TemporaryFileWrapper) -> str:
     """Process uploaded PDF file"""
     try:
-        chunks = pdf_processor.process_pdf(file.name)
-        vector_store.add_pdf_chunks(chunks)
-        return f"✓ Successfully processed PDF and added {len(chunks)} chunks to knowledge base"
+        chunks, document_id = pdf_processor.process_pdf(file.name)
+        vector_store.add_pdf_chunks(chunks, document_id=document_id)
+        return f"✓ Successfully processed PDF and added {len(chunks)} chunks to knowledge base (ID: {document_id})"
     except Exception as e:
         return f"✗ Error processing PDF: {str(e)}"
 
