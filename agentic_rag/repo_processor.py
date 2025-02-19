@@ -61,39 +61,61 @@ class RepoProcessor:
             # Ingest repository
             summary, tree, content = ingest(str(repo_path))
             
+            # Calculate token count based on content type
+            def estimate_tokens(content: Any) -> int:
+                if isinstance(content, dict):
+                    # If content is a dictionary of file contents
+                    return int(sum(len(str(c).split()) for c in content.values()) * 1.3)
+                elif isinstance(content, str):
+                    # If content is a single string
+                    return int(len(content.split()) * 1.3)
+                else:
+                    # If content is in another format, return 0
+                    return 0
+            
             # Print formatted repository information
             if isinstance(summary, dict):
                 repo_name = summary.get("name", "Unknown")
                 file_count = len(tree) if tree else 0
-                token_count = sum(len(str(c).split()) for c in content.values()) * 1.3  # Rough estimate
-                
-                print("\nRepository Information:")
-                print("-" * 50)
-                print(f"📦 Repository: {repo_name}")
-                print(f"📄 Files analyzed: {file_count}")
-                print(f"🔤 Estimated tokens: {int(token_count):,}")
             else:
-                print("\nRepository Information:")
-                print("-" * 50)
-                print(f"📦 Repository: {repo_path}")
-                print(f"📄 Files analyzed: {len(tree) if tree else 0}")
-                print(f"🔤 Estimated tokens: {int(sum(len(str(c).split()) for c in content.values()) * 1.3):,}")
+                repo_name = str(repo_path).split('/')[-1]
+                file_count = len(tree) if tree else 0
+            
+            token_count = estimate_tokens(content)
+            
+            print("\nRepository Information:")
+            print("-" * 50)
+            print(f"📦 Repository: {repo_name}")
+            print(f"📄 Files analyzed: {file_count}")
+            print(f"🔤 Estimated tokens: {token_count:,}")
             
             # Extract metadata
             metadata = self._extract_metadata(summary, tree)
             
             # Process content into chunks
             processed_chunks = []
-            for file_path, file_content in content.items():
-                # Skip if content is not a string
-                if not isinstance(file_content, str):
-                    continue
-                    
+            
+            if isinstance(content, dict):
+                # Handle dictionary of file contents
+                for file_path, file_content in content.items():
+                    if isinstance(file_content, str):
+                        chunk = {
+                            "text": file_content,
+                            "metadata": {
+                                **metadata,
+                                "file_path": file_path,
+                                "source": str(repo_path),
+                                "document_id": document_id
+                            }
+                        }
+                        processed_chunks.append(chunk)
+            elif isinstance(content, str):
+                # Handle single string content
                 chunk = {
-                    "text": file_content,
+                    "text": content,
                     "metadata": {
                         **metadata,
-                        "file_path": file_path,
+                        "file_path": "repository_content.txt",
                         "source": str(repo_path),
                         "document_id": document_id
                     }
