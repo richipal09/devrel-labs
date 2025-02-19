@@ -15,3 +15,4 @@ trafilatura
 gradio
 lxml_html_clean
 langchain
+gitingest

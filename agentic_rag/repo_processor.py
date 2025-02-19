@@ -15,39 +15,68 @@ def is_github_url(url: str) -> bool:
     except:
         return False
 
-class RepoProcessor:
-    def __init__(self):
-        """Initialize repository processor"""
-        pass
+def extract_repo_name(repo_path: str) -> str:
+    """Extract repository name from path or URL"""
+    if is_github_url(repo_path):
+        # For GitHub URLs, extract owner/repo format
+        parts = repo_path.rstrip('/').split('/')
+        if len(parts) >= 5:
+            return f"{parts[3]}/{parts[4]}"  # owner/repo format
     
-    def _extract_metadata(self, summary: Dict[str, Any], tree: Dict[str, Any]) -> Dict[str, Any]:
+    # For local paths, use the last directory name
+    return Path(repo_path).name
+
+class RepoProcessor:
+    def __init__(self, chunk_size: int = 500):
+        """Initialize repository processor with chunk size"""
+        self.chunk_size = chunk_size
+    
+    def _extract_metadata(self, summary: Dict[str, Any], tree: Dict[str, Any], repo_path: str) -> Dict[str, Any]:
         """Extract metadata from repository summary and tree"""
+        # Extract repo name from path or URL
+        repo_name = extract_repo_name(repo_path)
+        
         # Handle case where summary might be a string
         if isinstance(summary, str):
             return {
-                "repo_name": "Unknown",
-                "description": "",
-                "language": "",
-                "topics": [],
-                "stars": 0,
-                "forks": 0,
-                "last_updated": "",
+                "repo_name": repo_name,
                 "file_count": len(tree) if tree else 0
             }
         
         return {
-            "repo_name": summary.get("name", ""),
-            "description": summary.get("description", ""),
-            "language": summary.get("language", ""),
-            "topics": summary.get("topics", []),
-            "stars": summary.get("stars", 0),
-            "forks": summary.get("forks", 0),
-            "last_updated": summary.get("updated_at", ""),
+            "repo_name": repo_name,  # Use extracted name instead of summary
             "file_count": len(tree) if tree else 0
         }
     
+    def _chunk_text(self, text: str) -> List[str]:
+        """Split text into chunks of roughly equal size"""
+        # Split into sentences (roughly)
+        sentences = [s.strip() for s in text.split('.') if s.strip()]
+        
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for sentence in sentences:
+            # Add period back
+            sentence = sentence + '.'
+            # If adding this sentence would exceed chunk size, save current chunk
+            if current_length + len(sentence) > self.chunk_size and current_chunk:
+                chunks.append(' '.join(current_chunk))
+                current_chunk = []
+                current_length = 0
+            
+            current_chunk.append(sentence)
+            current_length += len(sentence)
+        
+        # Add any remaining text
+        if current_chunk:
+            chunks.append(' '.join(current_chunk))
+        
+        return chunks
+    
     def process_repo(self, repo_path: str | Path) -> Tuple[List[Dict[str, Any]], str]:
-        """Process a repository and return chunks of content with metadata"""
+        """Process a repository and return chunks of text with metadata"""
         try:
             # Generate a unique document ID
             document_id = str(uuid.uuid4())
@@ -61,66 +90,48 @@ class RepoProcessor:
             # Ingest repository
             summary, tree, content = ingest(str(repo_path))
             
-            # Calculate token count based on content type
-            def estimate_tokens(content: Any) -> int:
-                if isinstance(content, dict):
-                    # If content is a dictionary of file contents
-                    return int(sum(len(str(c).split()) for c in content.values()) * 1.3)
-                elif isinstance(content, str):
-                    # If content is a single string
-                    return int(len(content.split()) * 1.3)
-                else:
-                    # If content is in another format, return 0
-                    return 0
-            
-            # Print formatted repository information
-            if isinstance(summary, dict):
-                repo_name = summary.get("name", "Unknown")
-                file_count = len(tree) if tree else 0
-            else:
-                repo_name = str(repo_path).split('/')[-1]
-                file_count = len(tree) if tree else 0
-            
-            token_count = estimate_tokens(content)
-            
-            print("\nRepository Information:")
-            print("-" * 50)
-            print(f"📦 Repository: {repo_name}")
-            print(f"📄 Files analyzed: {file_count}")
-            print(f"🔤 Estimated tokens: {token_count:,}")
-            
             # Extract metadata
-            metadata = self._extract_metadata(summary, tree)
+            metadata = self._extract_metadata(summary, tree, str(repo_path))
             
             # Process content into chunks
             processed_chunks = []
+            chunk_id = 0
             
             if isinstance(content, dict):
                 # Handle dictionary of file contents
                 for file_path, file_content in content.items():
-                    if isinstance(file_content, str):
-                        chunk = {
-                            "text": file_content,
-                            "metadata": {
-                                **metadata,
-                                "file_path": file_path,
-                                "source": str(repo_path),
-                                "document_id": document_id
+                    if isinstance(file_content, str) and file_content.strip():  # Only process non-empty content
+                        # Split content into chunks
+                        text_chunks = self._chunk_text(file_content)
+                        
+                        for text_chunk in text_chunks:
+                            chunk = {
+                                "text": text_chunk,
+                                "metadata": {
+                                    **metadata,
+                                    "source": str(repo_path),
+                                    "document_id": document_id,
+                                    "chunk_id": chunk_id
+                                }
                             }
-                        }
-                        processed_chunks.append(chunk)
+                            processed_chunks.append(chunk)
+                            chunk_id += 1
             elif isinstance(content, str):
                 # Handle single string content
-                chunk = {
-                    "text": content,
-                    "metadata": {
-                        **metadata,
-                        "file_path": "repository_content.txt",
-                        "source": str(repo_path),
-                        "document_id": document_id
+                text_chunks = self._chunk_text(content)
+                
+                for text_chunk in text_chunks:
+                    chunk = {
+                        "text": text_chunk,
+                        "metadata": {
+                            **metadata,
+                            "source": str(repo_path),
+                            "document_id": document_id,
+                            "chunk_id": chunk_id
+                        }
                     }
-                }
-                processed_chunks.append(chunk)
+                    processed_chunks.append(chunk)
+                    chunk_id += 1
             
             return processed_chunks, document_id
         
@@ -132,9 +143,11 @@ def main():
     parser.add_argument("--input", required=True, 
                        help="Input repository path or GitHub URL")
     parser.add_argument("--output", required=True, help="Output JSON file for chunks")
+    parser.add_argument("--chunk-size", type=int, default=500,
+                       help="Maximum size of text chunks")
     
     args = parser.parse_args()
-    processor = RepoProcessor()
+    processor = RepoProcessor(chunk_size=args.chunk_size)
     
     try:
         # Create output directory if it doesn't exist

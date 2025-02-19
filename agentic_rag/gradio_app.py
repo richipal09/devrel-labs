@@ -8,6 +8,7 @@ import yaml
 
 from pdf_processor import PDFProcessor
 from web_processor import WebProcessor
+from repo_processor import RepoProcessor
 from store import VectorStore
 from local_rag_agent import LocalRAGAgent
 from rag_agent import RAGAgent
@@ -28,6 +29,7 @@ def load_config():
 # Initialize components
 pdf_processor = PDFProcessor()
 web_processor = WebProcessor()
+repo_processor = RepoProcessor()
 vector_store = VectorStore()
 
 # Initialize agents
@@ -60,8 +62,22 @@ def process_url(url: str) -> str:
     except Exception as e:
         return f"✗ Error processing URL: {str(e)}"
 
-def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str) -> List[List[str]]:
-    """Process chat message using selected agent"""
+def process_repo(repo_path: str) -> str:
+    """Process repository content"""
+    try:
+        # Process repository and get chunks
+        chunks, document_id = repo_processor.process_repo(repo_path)
+        if not chunks:
+            return "✗ No content extracted from repository"
+            
+        # Add chunks to vector store
+        vector_store.add_repo_chunks(chunks, document_id=document_id)
+        return f"✓ Successfully processed repository and added {len(chunks)} chunks to knowledge base (ID: {document_id})"
+    except Exception as e:
+        return f"✗ Error processing repository: {str(e)}"
+
+def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str, collection: str) -> List[List[str]]:
+    """Process chat message using selected agent and collection"""
     try:
         # Select appropriate agent
         agent = local_agent if agent_type == "Local (Mistral)" else openai_agent
@@ -75,8 +91,15 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         agent.use_cot = use_cot
         agent.language = lang_code
         
-        # Process query
-        response = agent.process_query(message)
+        # Process query based on selected collection
+        if collection == "PDF Collection":
+            context = vector_store.query_pdf_collection(message)
+            response = agent._generate_response(message, context) if context else agent._generate_general_response(message)
+        elif collection == "Repository Collection":
+            context = vector_store.query_repo_collection(message)
+            response = agent._generate_response(message, context) if context else agent._generate_general_response(message)
+        else:  # General Knowledge
+            response = agent._generate_general_response(message)
         
         # Return updated history with new message pair
         history.append([message, response["answer"]])
@@ -91,7 +114,7 @@ def create_interface():
         gr.Markdown("""
         # 🤖 Agentic RAG System
         
-        Upload PDFs, process web content, and chat with your documents using local or OpenAI models.
+        Upload PDFs, process web content, repositories, and chat with your documents using local or OpenAI models.
         """)
         
         with gr.Tab("Document Processing"):
@@ -105,6 +128,11 @@ def create_interface():
                     url_input = gr.Textbox(label="Enter URL")
                     url_button = gr.Button("Process URL")
                     url_output = gr.Textbox(label="URL Processing Output")
+                    
+                with gr.Column():
+                    repo_input = gr.Textbox(label="Enter Repository Path or URL")
+                    repo_button = gr.Button("Process Repository")
+                    repo_output = gr.Textbox(label="Repository Processing Output")
         
         with gr.Tab("Chat Interface"):
             with gr.Row():
@@ -121,6 +149,12 @@ def create_interface():
                         value="English",
                         label="Response Language"
                     )
+                with gr.Column():
+                    collection_dropdown = gr.Dropdown(
+                        choices=["PDF Collection", "Repository Collection", "General Knowledge"],
+                        value="PDF Collection",
+                        label="Knowledge Collection"
+                    )
             chatbot = gr.Chatbot(height=400)
             msg = gr.Textbox(label="Your Message")
             clear = gr.Button("Clear Chat")
@@ -128,6 +162,7 @@ def create_interface():
         # Event handlers
         pdf_button.click(process_pdf, inputs=[pdf_file], outputs=[pdf_output])
         url_button.click(process_url, inputs=[url_input], outputs=[url_output])
+        repo_button.click(process_repo, inputs=[repo_input], outputs=[repo_output])
         msg.submit(
             chat,
             inputs=[
@@ -135,7 +170,8 @@ def create_interface():
                 chatbot,
                 agent_dropdown,
                 cot_checkbox,
-                language_dropdown
+                language_dropdown,
+                collection_dropdown
             ],
             outputs=[chatbot]
         )
@@ -148,12 +184,14 @@ def create_interface():
         1. **Document Processing**:
            - Upload PDFs using the file uploader
            - Process web content by entering URLs
+           - Process repositories by entering paths or GitHub URLs
            - All processed content is added to the knowledge base
         
         2. **Chat Interface**:
            - Select your preferred agent (Local Mistral or OpenAI)
            - Toggle Chain of Thought reasoning for more detailed responses
            - Choose your preferred response language (English or Spanish)
+           - Select which knowledge collection to query
            - Chat with your documents using natural language
         
         Note: OpenAI agent requires an API key in `.env` file
