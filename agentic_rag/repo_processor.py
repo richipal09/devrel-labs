@@ -22,6 +22,19 @@ class RepoProcessor:
     
     def _extract_metadata(self, summary: Dict[str, Any], tree: Dict[str, Any]) -> Dict[str, Any]:
         """Extract metadata from repository summary and tree"""
+        # Handle case where summary might be a string
+        if isinstance(summary, str):
+            return {
+                "repo_name": "Unknown",
+                "description": "",
+                "language": "",
+                "topics": [],
+                "stars": 0,
+                "forks": 0,
+                "last_updated": "",
+                "file_count": len(tree) if tree else 0
+            }
+        
         return {
             "repo_name": summary.get("name", ""),
             "description": summary.get("description", ""),
@@ -48,11 +61,23 @@ class RepoProcessor:
             # Ingest repository
             summary, tree, content = ingest(str(repo_path))
             
-            # Print repository information
-            print("\nRepository Summary:")
-            print(json.dumps(summary, indent=2))
-            print("\nFile Tree:")
-            print(json.dumps(tree, indent=2))
+            # Print formatted repository information
+            if isinstance(summary, dict):
+                repo_name = summary.get("name", "Unknown")
+                file_count = len(tree) if tree else 0
+                token_count = sum(len(str(c).split()) for c in content.values()) * 1.3  # Rough estimate
+                
+                print("\nRepository Information:")
+                print("-" * 50)
+                print(f"📦 Repository: {repo_name}")
+                print(f"📄 Files analyzed: {file_count}")
+                print(f"🔤 Estimated tokens: {int(token_count):,}")
+            else:
+                print("\nRepository Information:")
+                print("-" * 50)
+                print(f"📦 Repository: {repo_path}")
+                print(f"📄 Files analyzed: {len(tree) if tree else 0}")
+                print(f"🔤 Estimated tokens: {int(sum(len(str(c).split()) for c in content.values()) * 1.3):,}")
             
             # Extract metadata
             metadata = self._extract_metadata(summary, tree)
@@ -60,6 +85,10 @@ class RepoProcessor:
             # Process content into chunks
             processed_chunks = []
             for file_path, file_content in content.items():
+                # Skip if content is not a string
+                if not isinstance(file_content, str):
+                    continue
+                    
                 chunk = {
                     "text": file_content,
                     "metadata": {
