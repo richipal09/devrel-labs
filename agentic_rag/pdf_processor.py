@@ -30,7 +30,7 @@ class PDFProcessor:
         warnings.filterwarnings('ignore', category=UserWarning, module='transformers.modeling_utils')
         
         self.converter = DocumentConverter()
-        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=200)  # Further reduced chunk size
+        self.tokenizer = tokenizer
     
     def _extract_metadata(self, meta: Any) -> Dict[str, Any]:
         """Safely extract metadata from various object types"""
@@ -63,8 +63,13 @@ class PDFProcessor:
     def _try_chunk_with_size(self, document: Any, chunk_size: int) -> List[Any]:
         """Try chunking with a specific size, return None if it fails"""
         try:
-            self.chunker.max_chunk_size = chunk_size
-            return list(self.chunker.chunk(document))
+            # Create a new chunker with the specified size
+            chunker = HybridChunker(
+                tokenizer=self.tokenizer,
+                chunk_size=chunk_size,
+                chunk_overlap=0.1
+            )
+            return list(chunker.chunk(document))
         except Exception as e:
             print(f"Warning: Chunking failed with size {chunk_size}: {str(e)}")
             return None
