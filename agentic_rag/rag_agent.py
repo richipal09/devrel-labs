@@ -58,13 +58,9 @@ class RAGAgent:
         # Analyze the query
         analysis = self._analyze_query(query)
         
-        # If query type is unsupported, return early
+        # If query type is unsupported, use general knowledge
         if analysis.query_type == "unsupported":
-            return {
-                "answer": "I apologize, but I don't have the information to answer this query.",
-                "reasoning": analysis.reasoning,
-                "context": []
-            }
+            return self._generate_general_response(query)
         
         # Retrieve relevant context based on query type
         if analysis.query_type == "pdf_documents":
@@ -72,15 +68,11 @@ class RAGAgent:
         else:
             context = self.vector_store.query_general_collection(query)
         
-        # Generate response using context
+        # Generate response using context if available, otherwise use general knowledge
         if context and analysis.requires_context:
             response = self._generate_response(query, context)
         else:
-            response = {
-                "answer": "I couldn't find relevant information to answer your query.",
-                "reasoning": analysis.reasoning,
-                "context": []
-            }
+            response = self._generate_general_response(query)
         
         return response
     
@@ -126,6 +118,32 @@ Answer:"""
         return {
             "answer": response.content,
             "context": context
+        }
+
+    def _generate_general_response(self, query: str) -> Dict[str, Any]:
+        """Generate a response using general knowledge when no context is available"""
+        if self.use_cot:
+            template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+
+Please answer the following query using chain of thought reasoning:
+
+Query: {query}
+
+Let's think about this step by step:"""
+        else:
+            template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+
+Query: {query}
+
+Answer:"""
+        
+        prompt = ChatPromptTemplate.from_template(template)
+        messages = prompt.format_messages(query=query)
+        response = self.llm.invoke(messages)
+        
+        return {
+            "answer": "I didn't find specific information in my documents, but here's what I know about it:\n\n" + response.content,
+            "context": []
         }
 
 def main():

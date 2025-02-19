@@ -157,14 +157,10 @@ Answer:"""
         logger.info(f"- Requires context: {analysis.requires_context}")
         logger.info(f"- Reasoning: {analysis.reasoning}")
         
-        # If query type is unsupported, return early
+        # If query type is unsupported, use general knowledge
         if analysis.query_type == "unsupported":
-            logger.warning("Query type is unsupported")
-            return {
-                "answer": "I apologize, but I don't have the information to answer this query.",
-                "reasoning": analysis.reasoning,
-                "context": []
-            }
+            logger.info("Query type is unsupported, using general knowledge...")
+            return self._generate_general_response(query)
         
         # First try to get context from PDF documents
         logger.info("Querying PDF collection...")
@@ -187,19 +183,10 @@ Answer:"""
             return response
         
         # If no PDF context found or if it's a general knowledge query,
-        # use the LLM directly
-        if analysis.query_type == "general_knowledge" or not context:
-            logger.info("No relevant PDF context found or general knowledge query detected")
-            logger.info("Falling back to direct LLM response...")
-            return self._generate_direct_response(query)
-        
-        # This case should rarely happen, but just in case
-        logger.warning("No relevant context found and query type is not general knowledge")
-        return {
-            "answer": "I couldn't find relevant information to answer your query.",
-            "reasoning": analysis.reasoning,
-            "context": []
-        }
+        # use general knowledge
+        logger.info("No relevant PDF context found or general knowledge query detected")
+        logger.info("Using general knowledge response...")
+        return self._generate_general_response(query)
     
     def _generate_response(self, query: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate a response using the retrieved context"""
@@ -238,6 +225,34 @@ Answer:"""
         return {
             "answer": response,
             "context": context
+        }
+
+    def _generate_general_response(self, query: str) -> Dict[str, Any]:
+        """Generate a response using general knowledge when no context is available"""
+        logger.info("Generating general knowledge response...")
+        
+        if self.use_cot:
+            prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+
+Please answer the following query using chain of thought reasoning:
+
+Query: {query}
+
+Let's think about this step by step:"""
+        else:
+            prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+
+Query: {query}
+
+Answer:"""
+        
+        logger.info("Generating response using local model...")
+        response = self._generate_text(prompt, max_length=1024)
+        logger.info("Response generation complete")
+        
+        return {
+            "answer": "I didn't find specific information in my documents, but here's what I know about it:\n\n" + response,
+            "context": []
         }
 
 def main():

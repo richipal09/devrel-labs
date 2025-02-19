@@ -30,7 +30,7 @@ class PDFProcessor:
         warnings.filterwarnings('ignore', category=UserWarning, module='transformers.modeling_utils')
         
         self.converter = DocumentConverter()
-        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=256)  # Reduced chunk size for token length
+        self.chunker = HybridChunker(tokenizer=tokenizer, max_chunk_size=200)  # Further reduced chunk size
     
     def _extract_metadata(self, meta: Any) -> Dict[str, Any]:
         """Safely extract metadata from various object types"""
@@ -60,6 +60,15 @@ class PDFProcessor:
                 "page_numbers": []
             }
     
+    def _try_chunk_with_size(self, document: Any, chunk_size: int) -> List[Any]:
+        """Try chunking with a specific size, return None if it fails"""
+        try:
+            self.chunker.max_chunk_size = chunk_size
+            return list(self.chunker.chunk(document))
+        except Exception as e:
+            print(f"Warning: Chunking failed with size {chunk_size}: {str(e)}")
+            return None
+
     def process_pdf(self, file_path: str | Path) -> List[Dict[str, Any]]:
         """Process a PDF file and return chunks of text with metadata"""
         try:
@@ -71,14 +80,16 @@ class PDFProcessor:
             if not conv_result or not conv_result.document:
                 raise ValueError(f"Failed to convert PDF: {file_path}")
             
-            # Chunk the document with error handling
-            try:
-                chunks = list(self.chunker.chunk(conv_result.document))
-            except Exception as chunk_error:
-                print(f"Warning: Error during chunking: {str(chunk_error)}")
-                # Fallback to smaller chunk size if needed
-                self.chunker.max_chunk_size = 128
-                chunks = list(self.chunker.chunk(conv_result.document))
+            # Try chunking with progressively smaller sizes
+            chunks = None
+            for chunk_size in [200, 150, 100, 75]:
+                chunks = self._try_chunk_with_size(conv_result.document, chunk_size)
+                if chunks:
+                    print(f"Successfully chunked with size {chunk_size}")
+                    break
+            
+            if not chunks:
+                raise ValueError("Failed to chunk document with any chunk size")
             
             # Process chunks into a standardized format
             processed_chunks = []

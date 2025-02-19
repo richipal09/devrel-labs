@@ -176,6 +176,8 @@ First, we process a document and query it using the local model. Then, we add th
 # 1. Process the PDF
 python pdf_processor.py --input example.pdf --output chunks.json
 
+#python pdf_processor.py --input https://arxiv.org/pdf/2203.06605 --output chunks.json
+
 # 2. Add to vector store
 python store.py --add chunks.json
 
