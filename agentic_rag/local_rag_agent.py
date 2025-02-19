@@ -29,10 +29,11 @@ class QueryAnalysis(BaseModel):
     )
 
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False):
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en"):
         """Initialize local RAG agent with vector store and local LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
+        self.language = language
         
         # Load HuggingFace token from config
         try:
@@ -195,8 +196,32 @@ Answer:"""
                                   for i, item in enumerate(context)])
         
         logger.info("Building prompt with context...")
-        if self.use_cot:
-            prompt = f"""Answer the following query using the provided context and chain of thought reasoning.
+        if self.language == "es":
+            if self.use_cot:
+                prompt = f"""Responde a la siguiente consulta en español usando el contexto proporcionado y razonamiento paso a paso.
+Primero divide el problema en pasos, luego usa el contexto para resolver cada paso y llegar a la respuesta final.
+Si el contexto no contiene suficiente información para responder con precisión, dilo explícitamente.
+
+Contexto:
+{context_str}
+
+Consulta: {query}
+
+Pensemos en esto paso a paso:"""
+            else:
+                prompt = f"""Responde a la siguiente consulta en español usando el contexto proporcionado.
+Si el contexto no contiene suficiente información para responder con precisión,
+dilo explícitamente.
+
+Contexto:
+{context_str}
+
+Consulta: {query}
+
+Respuesta:"""
+        else:
+            if self.use_cot:
+                prompt = f"""Answer the following query using the provided context and chain of thought reasoning.
 First break down the problem into steps, then use the context to solve each step and arrive at the final answer.
 If the context doesn't contain enough information to answer accurately, say so explicitly.
 
@@ -206,8 +231,8 @@ Context:
 Query: {query}
 
 Let's think about this step by step:"""
-        else:
-            prompt = f"""Answer the following query using the provided context. 
+            else:
+                prompt = f"""Answer the following query using the provided context. 
 If the context doesn't contain enough information to answer accurately, 
 say so explicitly.
 
@@ -231,16 +256,32 @@ Answer:"""
         """Generate a response using general knowledge when no context is available"""
         logger.info("Generating general knowledge response...")
         
-        if self.use_cot:
-            prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+        if self.language == "es":
+            if self.use_cot:
+                prompt = f"""Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
+
+Por favor, responde a la siguiente consulta en español usando razonamiento paso a paso:
+
+Consulta: {query}
+
+Pensemos en esto paso a paso:"""
+            else:
+                prompt = f"""Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
+
+Consulta: {query}
+
+Respuesta:"""
+        else:
+            if self.use_cot:
+                prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
 
 Please answer the following query using chain of thought reasoning:
 
 Query: {query}
 
 Let's think about this step by step:"""
-        else:
-            prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+            else:
+                prompt = f"""You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
 
 Query: {query}
 
@@ -250,8 +291,10 @@ Answer:"""
         response = self._generate_text(prompt, max_length=1024)
         logger.info("Response generation complete")
         
+        prefix = "No encontré información específica en mis documentos, pero esto es lo que sé al respecto:\n\n" if self.language == "es" else "I didn't find specific information in my documents, but here's what I know about it:\n\n"
+        
         return {
-            "answer": "I didn't find specific information in my documents, but here's what I know about it:\n\n" + response,
+            "answer": prefix + response,
             "context": []
         }
 

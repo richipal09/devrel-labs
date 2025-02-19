@@ -60,7 +60,7 @@ def process_url(url: str) -> str:
     except Exception as e:
         return f"✗ Error processing URL: {str(e)}"
 
-def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool) -> List[List[str]]:
+def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str) -> List[List[str]]:
     """Process chat message using selected agent"""
     try:
         # Select appropriate agent
@@ -68,8 +68,9 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool)
         if not agent:
             return history + [[message, "Agent not available. Please check your configuration."]]
         
-        # Set CoT option
+        # Set CoT option and language
         agent.use_cot = use_cot
+        agent.language = language
         
         # Process query
         response = agent.process_query(message)
@@ -103,12 +104,20 @@ def create_interface():
                     url_output = gr.Textbox(label="URL Processing Output")
         
         with gr.Tab("Chat Interface"):
-            agent_dropdown = gr.Dropdown(
-                choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
-                value="Local (Mistral)",
-                label="Select Agent"
-            )
-            cot_checkbox = gr.Checkbox(label="Enable Chain of Thought Reasoning", value=False)
+            with gr.Row():
+                with gr.Column():
+                    agent_dropdown = gr.Dropdown(
+                        choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
+                        value="Local (Mistral)",
+                        label="Select Agent"
+                    )
+                    cot_checkbox = gr.Checkbox(label="Enable Chain of Thought Reasoning", value=False)
+                with gr.Column():
+                    language_dropdown = gr.Dropdown(
+                        choices=["English", "Spanish"],
+                        value="English",
+                        label="Response Language"
+                    )
             chatbot = gr.Chatbot(height=400)
             msg = gr.Textbox(label="Your Message")
             clear = gr.Button("Clear Chat")
@@ -116,7 +125,17 @@ def create_interface():
         # Event handlers
         pdf_button.click(process_pdf, inputs=[pdf_file], outputs=[pdf_output])
         url_button.click(process_url, inputs=[url_input], outputs=[url_output])
-        msg.submit(chat, inputs=[msg, chatbot, agent_dropdown, cot_checkbox], outputs=[chatbot])
+        msg.submit(
+            chat,
+            inputs=[
+                msg,
+                chatbot,
+                agent_dropdown,
+                cot_checkbox,
+                language_dropdown
+            ],
+            outputs=[chatbot]
+        )
         clear.click(lambda: None, None, chatbot, queue=False)
         
         # Instructions
@@ -131,6 +150,7 @@ def create_interface():
         2. **Chat Interface**:
            - Select your preferred agent (Local Mistral or OpenAI)
            - Toggle Chain of Thought reasoning for more detailed responses
+           - Choose your preferred response language (English or Spanish)
            - Chat with your documents using natural language
         
         Note: OpenAI agent requires an API key in `.env` file

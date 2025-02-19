@@ -21,10 +21,11 @@ class QueryAnalysis(BaseModel):
     )
 
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False):
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, language: str = "en"):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
+        self.language = language
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
@@ -87,8 +88,32 @@ class RAGAgent:
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
                                   for i, item in enumerate(context)])
         
-        if self.use_cot:
-            template = """Answer the following query using the provided context and chain of thought reasoning.
+        if self.language == "es":
+            if self.use_cot:
+                template = """Responde a la siguiente consulta en español usando el contexto proporcionado y razonamiento paso a paso.
+Primero divide el problema en pasos, luego usa el contexto para resolver cada paso y llegar a la respuesta final.
+Si el contexto no contiene suficiente información para responder con precisión, dilo explícitamente.
+
+Contexto:
+{context}
+
+Consulta: {query}
+
+Pensemos en esto paso a paso:"""
+            else:
+                template = """Responde a la siguiente consulta en español usando el contexto proporcionado.
+Si el contexto no contiene suficiente información para responder con precisión,
+dilo explícitamente.
+
+Contexto:
+{context}
+
+Consulta: {query}
+
+Respuesta:"""
+        else:
+            if self.use_cot:
+                template = """Answer the following query using the provided context and chain of thought reasoning.
 First break down the problem into steps, then use the context to solve each step and arrive at the final answer.
 If the context doesn't contain enough information to answer accurately, say so explicitly.
 
@@ -98,8 +123,8 @@ Context:
 Query: {query}
 
 Let's think about this step by step:"""
-        else:
-            template = """Answer the following query using the provided context. 
+            else:
+                template = """Answer the following query using the provided context. 
 If the context doesn't contain enough information to answer accurately, 
 say so explicitly.
 
@@ -122,16 +147,32 @@ Answer:"""
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:
         """Generate a response using general knowledge when no context is available"""
-        if self.use_cot:
-            template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+        if self.language == "es":
+            if self.use_cot:
+                template = """Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
+
+Por favor, responde a la siguiente consulta en español usando razonamiento paso a paso:
+
+Consulta: {query}
+
+Pensemos en esto paso a paso:"""
+            else:
+                template = """Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
+
+Consulta: {query}
+
+Respuesta:"""
+        else:
+            if self.use_cot:
+                template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
 
 Please answer the following query using chain of thought reasoning:
 
 Query: {query}
 
 Let's think about this step by step:"""
-        else:
-            template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I generally know about it.
+            else:
+                template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
 
 Query: {query}
 
@@ -141,8 +182,10 @@ Answer:"""
         messages = prompt.format_messages(query=query)
         response = self.llm.invoke(messages)
         
+        prefix = "No encontré información específica en mis documentos, pero esto es lo que sé al respecto:\n\n" if self.language == "es" else "I didn't find specific information in my documents, but here's what I know about it:\n\n"
+        
         return {
-            "answer": "I didn't find specific information in my documents, but here's what I know about it:\n\n" + response.content,
+            "answer": prefix + response.content,
             "context": []
         }
 
