@@ -63,15 +63,18 @@ class RAGAgent:
         if analysis.query_type == "unsupported":
             return self._generate_general_response(query)
         
-        # Retrieve relevant context based on query type
-        if analysis.query_type == "pdf_documents":
-            context = self.vector_store.query_pdf_collection(query)
-        else:
-            context = self.vector_store.query_general_collection(query)
+        # First try to get context from PDF documents
+        pdf_context = self.vector_store.query_pdf_collection(query)
+        
+        # Then try repository documents
+        repo_context = self.vector_store.query_repo_collection(query)
+        
+        # Combine all context
+        all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if context and analysis.requires_context:
-            response = self._generate_response(query, context)
+        if all_context and analysis.requires_context:
+            response = self._generate_response(query, all_context)
         else:
             response = self._generate_general_response(query)
         

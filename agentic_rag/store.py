@@ -21,6 +21,10 @@ class VectorStore:
             name="web_documents",
             metadata={"hnsw:space": "cosine"}
         )
+        self.repo_collection = self.client.get_or_create_collection(
+            name="repository_documents",
+            metadata={"hnsw:space": "cosine"}
+        )
         self.general_collection = self.client.get_or_create_collection(
             name="general_knowledge",
             metadata={"hnsw:space": "cosine"}
@@ -94,6 +98,23 @@ class VectorStore:
             ids=ids
         )
     
+    def add_repo_chunks(self, chunks: List[Dict[str, Any]], document_id: str):
+        """Add chunks from a repository to the vector store"""
+        if not chunks:
+            return
+        
+        # Prepare data for ChromaDB
+        texts = [chunk["text"] for chunk in chunks]
+        metadatas = [self._sanitize_metadata(chunk["metadata"]) for chunk in chunks]
+        ids = [f"{document_id}_{i}" for i in range(len(chunks))]
+        
+        # Add to collection
+        self.repo_collection.add(
+            documents=texts,
+            metadatas=metadatas,
+            ids=ids
+        )
+    
     def query_pdf_collection(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """Query the PDF documents collection"""
         results = self.pdf_collection.query(
@@ -133,6 +154,24 @@ class VectorStore:
     def query_general_collection(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
         """Query the general knowledge collection"""
         results = self.general_collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+        
+        # Format results
+        formatted_results = []
+        for i in range(len(results["documents"][0])):
+            result = {
+                "content": results["documents"][0][i],
+                "metadata": results["metadatas"][0][i]
+            }
+            formatted_results.append(result)
+        
+        return formatted_results
+    
+    def query_repo_collection(self, query: str, n_results: int = 3) -> List[Dict[str, Any]]:
+        """Query the repository documents collection"""
+        results = self.repo_collection.query(
             query_texts=[query],
             n_results=n_results
         )

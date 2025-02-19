@@ -68,9 +68,12 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         if not agent:
             return history + [[message, "Agent not available. Please check your configuration."]]
         
+        # Convert language selection to language code
+        lang_code = "es" if language == "Spanish" else "en"
+        
         # Set CoT option and language
         agent.use_cot = use_cot
-        agent.language = language
+        agent.language = lang_code
         
         # Process query
         response = agent.process_query(message)

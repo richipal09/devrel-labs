@@ -165,27 +165,40 @@ Answer:"""
         
         # First try to get context from PDF documents
         logger.info("Querying PDF collection...")
-        context = self.vector_store.query_pdf_collection(query)
-        logger.info(f"Retrieved {len(context)} context chunks")
+        pdf_context = self.vector_store.query_pdf_collection(query)
+        logger.info(f"Retrieved {len(pdf_context)} PDF context chunks")
         
-        if context:
-            # If we found relevant PDF context, use it
-            for i, ctx in enumerate(context):
+        # Then try repository documents
+        logger.info("Querying repository collection...")
+        repo_context = self.vector_store.query_repo_collection(query)
+        logger.info(f"Retrieved {len(repo_context)} repository context chunks")
+        
+        # Combine and sort context by relevance
+        all_context = pdf_context + repo_context
+        
+        if all_context:
+            # Log context sources
+            for i, ctx in enumerate(all_context):
                 source = ctx["metadata"].get("source", "Unknown")
-                pages = ctx["metadata"].get("page_numbers", [])
-                logger.info(f"Context chunk {i+1}:")
-                logger.info(f"- Source: {source}")
-                logger.info(f"- Pages: {pages}")
+                if "page_numbers" in ctx["metadata"]:
+                    pages = ctx["metadata"].get("page_numbers", [])
+                    logger.info(f"Context chunk {i+1} (PDF):")
+                    logger.info(f"- Source: {source}")
+                    logger.info(f"- Pages: {pages}")
+                else:
+                    file_path = ctx["metadata"].get("file_path", "Unknown")
+                    logger.info(f"Context chunk {i+1} (Repository):")
+                    logger.info(f"- Source: {source}")
+                    logger.info(f"- File: {file_path}")
                 logger.info(f"- Content preview: {ctx['content'][:100]}...")
             
-            logger.info("Generating response with PDF context...")
-            response = self._generate_response(query, context)
+            logger.info("Generating response with context...")
+            response = self._generate_response(query, all_context)
             logger.info("Response generated successfully")
             return response
         
-        # If no PDF context found or if it's a general knowledge query,
-        # use general knowledge
-        logger.info("No relevant PDF context found or general knowledge query detected")
+        # If no context found, use general knowledge
+        logger.info("No relevant context found")
         logger.info("Using general knowledge response...")
         return self._generate_general_response(query)
     
