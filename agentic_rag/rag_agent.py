@@ -85,48 +85,65 @@ class RAGAgent:
             repo_context = self.vector_store.query_repo_collection(query)
             initial_context = pdf_context + repo_context
         
-        # Step 1: Planning
-        logger.info("Step 1: Planning")
-        plan = self.agents["planner"].plan(query, initial_context)
-        logger.info(f"Generated plan:\n{plan}")
-        
-        # Step 2: Research each step (if researcher is available)
-        logger.info("Step 2: Research")
-        research_results = []
-        if self.agents["researcher"] is not None and initial_context:
-            for step in plan.split("\n"):
-                if not step.strip():
-                    continue
-                step_research = self.agents["researcher"].research(query, step)
-                research_results.append({"step": step, "findings": step_research})
-                logger.info(f"Research for step: {step}\nFindings: {step_research}")
-        else:
-            # If no researcher or no context, use the steps directly
-            research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
-            logger.info("No research performed (no researcher agent or no context available)")
-        
-        # Step 3: Reasoning about each step
-        logger.info("Step 3: Reasoning")
-        reasoning_steps = []
-        for result in research_results:
-            step_reasoning = self.agents["reasoner"].reason(
-                query,
-                result["step"],
-                result["findings"] if result["findings"] else [{"content": "Using general knowledge", "metadata": {"source": "General Knowledge"}}]
-            )
-            reasoning_steps.append(step_reasoning)
-            logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
-        
-        # Step 4: Synthesize final answer
-        logger.info("Step 4: Synthesis")
-        final_answer = self.agents["synthesizer"].synthesize(query, reasoning_steps)
-        logger.info(f"Final synthesized answer:\n{final_answer}")
-        
-        return {
-            "answer": final_answer,
-            "context": initial_context,
-            "reasoning_steps": reasoning_steps
-        }
+        try:
+            # Step 1: Planning
+            logger.info("Step 1: Planning")
+            if not self.agents or "planner" not in self.agents:
+                logger.warning("No planner agent available, using direct response")
+                return self._generate_general_response(query)
+            
+            plan = self.agents["planner"].plan(query, initial_context)
+            logger.info(f"Generated plan:\n{plan}")
+            
+            # Step 2: Research each step (if researcher is available)
+            logger.info("Step 2: Research")
+            research_results = []
+            if self.agents.get("researcher") is not None and initial_context:
+                for step in plan.split("\n"):
+                    if not step.strip():
+                        continue
+                    step_research = self.agents["researcher"].research(query, step)
+                    research_results.append({"step": step, "findings": step_research})
+                    logger.info(f"Research for step: {step}\nFindings: {step_research}")
+            else:
+                # If no researcher or no context, use the steps directly
+                research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
+                logger.info("No research performed (no researcher agent or no context available)")
+            
+            # Step 3: Reasoning about each step
+            logger.info("Step 3: Reasoning")
+            if not self.agents.get("reasoner"):
+                logger.warning("No reasoner agent available, using direct response")
+                return self._generate_general_response(query)
+            
+            reasoning_steps = []
+            for result in research_results:
+                step_reasoning = self.agents["reasoner"].reason(
+                    query,
+                    result["step"],
+                    result["findings"] if result["findings"] else [{"content": "Using general knowledge", "metadata": {"source": "General Knowledge"}}]
+                )
+                reasoning_steps.append(step_reasoning)
+                logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
+            
+            # Step 4: Synthesize final answer
+            logger.info("Step 4: Synthesis")
+            if not self.agents.get("synthesizer"):
+                logger.warning("No synthesizer agent available, using direct response")
+                return self._generate_general_response(query)
+            
+            final_answer = self.agents["synthesizer"].synthesize(query, reasoning_steps)
+            logger.info(f"Final synthesized answer:\n{final_answer}")
+            
+            return {
+                "answer": final_answer,
+                "context": initial_context,
+                "reasoning_steps": reasoning_steps
+            }
+        except Exception as e:
+            logger.error(f"Error in CoT processing: {str(e)}")
+            logger.info("Falling back to general response")
+            return self._generate_general_response(query)
     
     def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
         """Process query using standard approach without Chain of Thought"""
