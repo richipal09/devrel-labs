@@ -2,6 +2,21 @@ from typing import List, Dict, Any
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
+import logging
+import warnings
+from transformers import logging as transformers_logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+# Suppress specific transformers warnings
+transformers_logging.set_verbosity_error()
+warnings.filterwarnings("ignore", message="Setting `pad_token_id` to `eos_token_id`")
 
 class Agent(BaseModel):
     """Base agent class with common properties"""
@@ -10,6 +25,14 @@ class Agent(BaseModel):
     description: str
     llm: Any = Field(description="Language model for the agent")
     
+    def log_prompt(self, prompt: str, prefix: str = ""):
+        """Log a prompt being sent to the LLM"""
+        logger.info(f"\n{'='*80}\n{prefix} Prompt:\n{'-'*40}\n{prompt}\n{'='*80}")
+        
+    def log_response(self, response: str, prefix: str = ""):
+        """Log a response received from the LLM"""
+        logger.info(f"\n{'='*80}\n{prefix} Response:\n{'-'*40}\n{response}\n{'='*80}")
+
 class PlannerAgent(Agent):
     """Agent responsible for breaking down problems and planning steps"""
     def __init__(self, llm):
@@ -21,6 +44,8 @@ class PlannerAgent(Agent):
         )
         
     def plan(self, query: str, context: List[Dict[str, Any]] = None) -> str:
+        logger.info(f"\n🎯 Planning step for query: {query}")
+        
         if context:
             template = """You are a strategic planning agent. Your role is to break down complex problems into clear, manageable steps.
             
@@ -34,6 +59,7 @@ class PlannerAgent(Agent):
             
             Plan:"""
             context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" for i, item in enumerate(context)])
+            logger.info(f"Using context ({len(context)} items)")
         else:
             template = """You are a strategic planning agent. Your role is to break down complex problems into clear, manageable steps.
             
@@ -44,10 +70,15 @@ class PlannerAgent(Agent):
             
             Plan:"""
             context_str = ""
+            logger.info("No context available")
             
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(query=query, context=context_str)
+        prompt_text = "\n".join([msg.content for msg in messages])
+        self.log_prompt(prompt_text, "Planner")
+        
         response = self.llm.invoke(messages)
+        self.log_response(response.content, "Planner")
         return response.content
 
 class ResearchAgent(Agent):
@@ -64,14 +95,18 @@ class ResearchAgent(Agent):
         )
         
     def research(self, query: str, step: str) -> List[Dict[str, Any]]:
+        logger.info(f"\n🔍 Researching for step: {step}")
+        
         # Query all collections
         pdf_results = self.vector_store.query_pdf_collection(query)
         repo_results = self.vector_store.query_repo_collection(query)
         
         # Combine results
         all_results = pdf_results + repo_results
+        logger.info(f"Found {len(all_results)} relevant documents")
         
         if not all_results:
+            logger.warning("No relevant documents found")
             return []
             
         # Have LLM analyze and summarize findings
@@ -89,7 +124,11 @@ class ResearchAgent(Agent):
         context_str = "\n\n".join([f"Source {i+1}:\n{item['content']}" for i, item in enumerate(all_results)])
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(step=step, context=context_str)
+        prompt_text = "\n".join([msg.content for msg in messages])
+        self.log_prompt(prompt_text, "Researcher")
+        
         response = self.llm.invoke(messages)
+        self.log_response(response.content, "Researcher")
         
         return [{"content": response.content, "metadata": {"source": "Research Summary"}}]
 
@@ -104,6 +143,8 @@ class ReasoningAgent(Agent):
         )
         
     def reason(self, query: str, step: str, context: List[Dict[str, Any]]) -> str:
+        logger.info(f"\n🤔 Reasoning about step: {step}")
+        
         template = """You are a reasoning agent. Your role is to apply logical analysis to information and draw conclusions.
         
         Given the following step, context, and query, apply logical reasoning to reach a conclusion.
@@ -121,7 +162,11 @@ class ReasoningAgent(Agent):
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" for i, item in enumerate(context)])
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(step=step, query=query, context=context_str)
+        prompt_text = "\n".join([msg.content for msg in messages])
+        self.log_prompt(prompt_text, "Reasoner")
+        
         response = self.llm.invoke(messages)
+        self.log_response(response.content, "Reasoner")
         return response.content
 
 class SynthesisAgent(Agent):
@@ -135,6 +180,8 @@ class SynthesisAgent(Agent):
         )
         
     def synthesize(self, query: str, reasoning_steps: List[str]) -> str:
+        logger.info(f"\n📝 Synthesizing final answer from {len(reasoning_steps)} reasoning steps")
+        
         template = """You are a synthesis agent. Your role is to combine multiple pieces of information into a clear, coherent response.
         
         Given the following query and reasoning steps, create a final comprehensive answer.
@@ -150,7 +197,11 @@ class SynthesisAgent(Agent):
         steps_str = "\n\n".join([f"Step {i+1}:\n{step}" for i, step in enumerate(reasoning_steps)])
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(query=query, steps=steps_str)
+        prompt_text = "\n".join([msg.content for msg in messages])
+        self.log_prompt(prompt_text, "Synthesizer")
+        
         response = self.llm.invoke(messages)
+        self.log_response(response.content, "Synthesizer")
         return response.content
 
 def create_agents(llm, vector_store=None):
