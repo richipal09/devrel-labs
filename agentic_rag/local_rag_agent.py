@@ -126,15 +126,20 @@ class LocalRAGAgent:
         plan = self.agents["planner"].plan(query, initial_context)
         logger.info(f"Generated plan:\n{plan}")
         
-        # Step 2: Research each step
+        # Step 2: Research each step (if researcher is available)
         logger.info("Step 2: Research")
         research_results = []
-        for step in plan.split("\n"):
-            if not step.strip():
-                continue
-            step_research = self.agents["researcher"].research(query, step)
-            research_results.append({"step": step, "findings": step_research})
-            logger.info(f"Research for step: {step}\nFindings: {step_research}")
+        if self.agents["researcher"] is not None and initial_context:
+            for step in plan.split("\n"):
+                if not step.strip():
+                    continue
+                step_research = self.agents["researcher"].research(query, step)
+                research_results.append({"step": step, "findings": step_research})
+                logger.info(f"Research for step: {step}\nFindings: {step_research}")
+        else:
+            # If no researcher or no context, use the steps directly
+            research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
+            logger.info("No research performed (no researcher agent or no context available)")
         
         # Step 3: Reasoning about each step
         logger.info("Step 3: Reasoning")
@@ -143,7 +148,7 @@ class LocalRAGAgent:
             step_reasoning = self.agents["reasoner"].reason(
                 query,
                 result["step"],
-                result["findings"]
+                result["findings"] if result["findings"] else [{"content": "Using general knowledge", "metadata": {"source": "General Knowledge"}}]
             )
             reasoning_steps.append(step_reasoning)
             logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
