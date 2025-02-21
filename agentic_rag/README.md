@@ -190,50 +190,88 @@ python rag_agent.py --query "Can you explain the DaGAN Approach proposed in the 
 
 ## 2. Chain of Thought (CoT) Support
 
-The system implements Chain of Thought prompting, allowing the LLMs to break down complex queries into steps and show their reasoning process. This feature can be activated in several ways:
+The system implements an advanced multi-agent Chain of Thought system, allowing complex queries to be broken down and processed through multiple specialized agents. This feature enhances the reasoning capabilities of both local and cloud-based models.
 
-### 1. Using the API
+### Multi-Agent System
 
+The CoT system consists of four specialized agents:
+
+1. **Planner Agent**: Breaks down complex queries into clear, manageable steps
+2. **Research Agent**: Gathers and analyzes relevant information from knowledge bases
+3. **Reasoning Agent**: Applies logical analysis to information and draws conclusions
+4. **Synthesis Agent**: Combines multiple pieces of information into a coherent response
+
+### Using CoT
+
+You can activate the multi-agent CoT system in several ways:
+
+1. **Command Line**:
+```bash
+# Using local Mistral model (default)
+python local_rag_agent.py --query "your query" --use-cot
+
+# Using OpenAI model
+python rag_agent.py --query "your query" --use-cot
+```
+
+2. **Testing the System**:
+```bash
+# Test with local model (default)
+python tests/test_new_cot.py
+
+# Test with OpenAI model
+python tests/test_new_cot.py --model openai
+```
+
+3. **API Endpoint**:
 ```http
 POST /query
 Content-Type: application/json
 
 {
-    "query": "your question here",
+    "query": "your query",
     "use_cot": true
 }
 ```
 
-### 2. Using Command Line
+### Example Output
 
-```bash
-# Using local Mistral model with CoT
-python local_rag_agent.py --query "your question" --use-cot
+When CoT is enabled, the system will show:
+- The initial plan for answering the query
+- Research findings for each step
+- Reasoning process and conclusions
+- Final synthesized answer
+- Sources used from the knowledge base
 
-# Using OpenAI with CoT
-python rag_agent.py --query "your question" --use-cot
+Example:
+```
+Step 1: Planning
+- Break down the technical components
+- Identify key features
+- Analyze implementation details
+
+Step 2: Research
+[Research findings for each step...]
+
+Step 3: Reasoning
+[Logical analysis and conclusions...]
+
+Final Answer:
+[Comprehensive response synthesized from all steps...]
+
+Sources used:
+- document.pdf (pages: 1, 2, 3)
+- implementation.py
 ```
 
-### 3. Programmatically
+### Benefits
 
-```python
-# Initialize agents with CoT enabled
-local_agent = LocalRAGAgent(vector_store, use_cot=True)
-openai_agent = RAGAgent(vector_store, openai_api_key, use_cot=True)
-```
-
-When CoT is enabled, the system will:
-1. Break down complex queries into logical steps
-2. Show the reasoning process for each step
-3. Use available context more effectively by explaining how it relates to each step
-4. Arrive at more reliable answers through structured thinking
-
-This is particularly useful for:
-- Complex analytical questions
-- Multi-step reasoning problems
-- Questions requiring detailed explanations
-- Queries that need careful consideration of multiple pieces of context
-
+The multi-agent CoT approach offers several advantages:
+- More structured and thorough analysis of complex queries
+- Better integration with knowledge bases
+- Transparent reasoning process
+- Improved answer quality through specialized agents
+- Works with both local and cloud-based models
 
 ## Annex: API Endpoints
 

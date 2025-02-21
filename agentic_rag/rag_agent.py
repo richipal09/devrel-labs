@@ -4,9 +4,15 @@ from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from store import VectorStore
+from agents.agent_factory import create_agents
 import os
 import argparse
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class QueryAnalysis(BaseModel):
     """Pydantic model for query analysis output"""
@@ -33,6 +39,9 @@ class RAGAgent:
         )
         self.query_analyzer = self._create_query_analyzer()
         
+        # Initialize specialized agents
+        self.agents = create_agents(self.llm, vector_store) if use_cot else None
+    
     def _create_query_analyzer(self):
         """Create a chain for analyzing queries"""
         template = """You are an intelligent agent that analyzes user queries to determine the best source of information.
@@ -58,7 +67,64 @@ class RAGAgent:
         """Process a user query using the agentic RAG pipeline"""
         # Analyze the query
         analysis = self._analyze_query(query)
+        logger.info(f"Query analysis: {analysis}")
         
+        if self.use_cot:
+            return self._process_query_with_cot(query, analysis)
+        else:
+            return self._process_query_standard(query, analysis)
+    
+    def _process_query_with_cot(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+        """Process query using Chain of Thought reasoning with multiple agents"""
+        logger.info("Processing query with Chain of Thought reasoning")
+        
+        # Get initial context if needed
+        initial_context = []
+        if analysis.requires_context and analysis.query_type != "unsupported":
+            pdf_context = self.vector_store.query_pdf_collection(query)
+            repo_context = self.vector_store.query_repo_collection(query)
+            initial_context = pdf_context + repo_context
+        
+        # Step 1: Planning
+        logger.info("Step 1: Planning")
+        plan = self.agents["planner"].plan(query, initial_context)
+        logger.info(f"Generated plan:\n{plan}")
+        
+        # Step 2: Research each step
+        logger.info("Step 2: Research")
+        research_results = []
+        for step in plan.split("\n"):
+            if not step.strip():
+                continue
+            step_research = self.agents["researcher"].research(query, step)
+            research_results.append({"step": step, "findings": step_research})
+            logger.info(f"Research for step: {step}\nFindings: {step_research}")
+        
+        # Step 3: Reasoning about each step
+        logger.info("Step 3: Reasoning")
+        reasoning_steps = []
+        for result in research_results:
+            step_reasoning = self.agents["reasoner"].reason(
+                query,
+                result["step"],
+                result["findings"]
+            )
+            reasoning_steps.append(step_reasoning)
+            logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
+        
+        # Step 4: Synthesize final answer
+        logger.info("Step 4: Synthesis")
+        final_answer = self.agents["synthesizer"].synthesize(query, reasoning_steps)
+        logger.info(f"Final synthesized answer:\n{final_answer}")
+        
+        return {
+            "answer": final_answer,
+            "context": initial_context,
+            "reasoning_steps": reasoning_steps
+        }
+    
+    def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+        """Process query using standard approach without Chain of Thought"""
         # If query type is unsupported, use general knowledge
         if analysis.query_type == "unsupported":
             return self._generate_general_response(query)
@@ -91,43 +157,7 @@ class RAGAgent:
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
                                   for i, item in enumerate(context)])
         
-        if self.language == "es":
-            if self.use_cot:
-                template = """Responde a la siguiente consulta en español usando el contexto proporcionado y razonamiento paso a paso.
-Primero divide el problema en pasos, luego usa el contexto para resolver cada paso y llegar a la respuesta final.
-Si el contexto no contiene suficiente información para responder con precisión, dilo explícitamente.
-
-Contexto:
-{context}
-
-Consulta: {query}
-
-Pensemos en esto paso a paso:"""
-            else:
-                template = """Responde a la siguiente consulta en español usando el contexto proporcionado.
-Si el contexto no contiene suficiente información para responder con precisión,
-dilo explícitamente.
-
-Contexto:
-{context}
-
-Consulta: {query}
-
-Respuesta:"""
-        else:
-            if self.use_cot:
-                template = """Answer the following query using the provided context and chain of thought reasoning.
-First break down the problem into steps, then use the context to solve each step and arrive at the final answer.
-If the context doesn't contain enough information to answer accurately, say so explicitly.
-
-Context:
-{context}
-
-Query: {query}
-
-Let's think about this step by step:"""
-            else:
-                template = """Answer the following query using the provided context. 
+        template = """Answer the following query using the provided context. 
 If the context doesn't contain enough information to answer accurately, 
 say so explicitly.
 
@@ -139,7 +169,6 @@ Query: {query}
 Answer:"""
         
         prompt = ChatPromptTemplate.from_template(template)
-        
         messages = prompt.format_messages(context=context_str, query=query)
         response = self.llm.invoke(messages)
         
@@ -150,32 +179,7 @@ Answer:"""
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:
         """Generate a response using general knowledge when no context is available"""
-        if self.language == "es":
-            if self.use_cot:
-                template = """Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
-
-Por favor, responde a la siguiente consulta en español usando razonamiento paso a paso:
-
-Consulta: {query}
-
-Pensemos en esto paso a paso:"""
-            else:
-                template = """Eres un asistente de IA útil. Si bien no tengo información específica de mi colección de documentos sobre esta consulta, compartiré lo que sé al respecto.
-
-Consulta: {query}
-
-Respuesta:"""
-        else:
-            if self.use_cot:
-                template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
-
-Please answer the following query using chain of thought reasoning:
-
-Query: {query}
-
-Let's think about this step by step:"""
-            else:
-                template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
+        template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
 
 Query: {query}
 
@@ -185,7 +189,7 @@ Answer:"""
         messages = prompt.format_messages(query=query)
         response = self.llm.invoke(messages)
         
-        prefix = "No encontré información específica en mis documentos, pero esto es lo que sé al respecto:\n\n" if self.language == "es" else "I didn't find specific information in my documents, but here's what I know about it:\n\n"
+        prefix = "I didn't find specific information in my documents, but here's what I know about it:\n\n"
         
         return {
             "answer": prefix + response.content,
@@ -223,6 +227,13 @@ def main():
         print("\nResponse:")
         print("-" * 50)
         print(response["answer"])
+        
+        if response.get("reasoning_steps"):
+            print("\nReasoning Steps:")
+            print("-" * 50)
+            for i, step in enumerate(response["reasoning_steps"]):
+                print(f"\nStep {i+1}:")
+                print(step)
         
         if response.get("context"):
             print("\nSources used:")
