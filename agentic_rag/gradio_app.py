@@ -193,48 +193,116 @@ def create_interface():
                     repo_button = gr.Button("Process Repository")
                     repo_output = gr.Textbox(label="Repository Processing Output")
         
-        with gr.Tab("Chat Interface"):
+        with gr.Tab("Standard Chat Interface"):
             with gr.Row():
                 with gr.Column():
-                    agent_dropdown = gr.Dropdown(
+                    standard_agent_dropdown = gr.Dropdown(
                         choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
                         value="Local (Mistral)",
                         label="Select Agent"
                     )
-                    cot_checkbox = gr.Checkbox(label="Enable Chain of Thought Reasoning", value=False)
                 with gr.Column():
-                    language_dropdown = gr.Dropdown(
+                    standard_language_dropdown = gr.Dropdown(
                         choices=["English", "Spanish"],
                         value="English",
                         label="Response Language"
                     )
                 with gr.Column():
-                    collection_dropdown = gr.Dropdown(
+                    standard_collection_dropdown = gr.Dropdown(
                         choices=["PDF Collection", "Repository Collection", "General Knowledge"],
                         value="PDF Collection",
                         label="Knowledge Collection"
                     )
-            chatbot = gr.Chatbot(height=400)
-            msg = gr.Textbox(label="Your Message")
-            clear = gr.Button("Clear Chat")
+            standard_chatbot = gr.Chatbot(height=400)
+            with gr.Row():
+                standard_msg = gr.Textbox(label="Your Message", scale=9)
+                standard_send = gr.Button("Send", scale=1)
+            standard_clear = gr.Button("Clear Chat")
+
+        with gr.Tab("Chain of Thought Chat Interface"):
+            with gr.Row():
+                with gr.Column():
+                    cot_agent_dropdown = gr.Dropdown(
+                        choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
+                        value="Local (Mistral)",
+                        label="Select Agent"
+                    )
+                with gr.Column():
+                    cot_language_dropdown = gr.Dropdown(
+                        choices=["English", "Spanish"],
+                        value="English",
+                        label="Response Language"
+                    )
+                with gr.Column():
+                    cot_collection_dropdown = gr.Dropdown(
+                        choices=["PDF Collection", "Repository Collection", "General Knowledge"],
+                        value="PDF Collection",
+                        label="Knowledge Collection"
+                    )
+            cot_chatbot = gr.Chatbot(height=400)
+            with gr.Row():
+                cot_msg = gr.Textbox(label="Your Message", scale=9)
+                cot_send = gr.Button("Send", scale=1)
+            cot_clear = gr.Button("Clear Chat")
         
         # Event handlers
         pdf_button.click(process_pdf, inputs=[pdf_file], outputs=[pdf_output])
         url_button.click(process_url, inputs=[url_input], outputs=[url_output])
         repo_button.click(process_repo, inputs=[repo_input], outputs=[repo_output])
-        msg.submit(
+        
+        # Standard chat handlers
+        standard_msg.submit(
             chat,
             inputs=[
-                msg,
-                chatbot,
-                agent_dropdown,
-                cot_checkbox,
-                language_dropdown,
-                collection_dropdown
+                standard_msg,
+                standard_chatbot,
+                standard_agent_dropdown,
+                gr.State(False),  # use_cot=False
+                standard_language_dropdown,
+                standard_collection_dropdown
             ],
-            outputs=[chatbot]
+            outputs=[standard_chatbot]
         )
-        clear.click(lambda: None, None, chatbot, queue=False)
+        standard_send.click(
+            chat,
+            inputs=[
+                standard_msg,
+                standard_chatbot,
+                standard_agent_dropdown,
+                gr.State(False),  # use_cot=False
+                standard_language_dropdown,
+                standard_collection_dropdown
+            ],
+            outputs=[standard_chatbot]
+        )
+        standard_clear.click(lambda: None, None, standard_chatbot, queue=False)
+        
+        # CoT chat handlers
+        cot_msg.submit(
+            chat,
+            inputs=[
+                cot_msg,
+                cot_chatbot,
+                cot_agent_dropdown,
+                gr.State(True),  # use_cot=True
+                cot_language_dropdown,
+                cot_collection_dropdown
+            ],
+            outputs=[cot_chatbot]
+        )
+        cot_send.click(
+            chat,
+            inputs=[
+                cot_msg,
+                cot_chatbot,
+                cot_agent_dropdown,
+                gr.State(True),  # use_cot=True
+                cot_language_dropdown,
+                cot_collection_dropdown
+            ],
+            outputs=[cot_chatbot]
+        )
+        cot_clear.click(lambda: None, None, cot_chatbot, queue=False)
         
         # Instructions
         gr.Markdown("""
@@ -246,12 +314,17 @@ def create_interface():
            - Process repositories by entering paths or GitHub URLs
            - All processed content is added to the knowledge base
         
-        2. **Chat Interface**:
+        2. **Standard Chat Interface**:
+           - Quick responses without detailed reasoning steps
            - Select your preferred agent (Local Mistral or OpenAI)
-           - Toggle Chain of Thought reasoning for more detailed responses
-           - Choose your preferred response language (English or Spanish)
+           - Choose your preferred response language
            - Select which knowledge collection to query
-           - Chat with your documents using natural language
+        
+        3. **Chain of Thought Chat Interface**:
+           - Detailed responses with step-by-step reasoning
+           - See the planning, research, reasoning, and synthesis steps
+           - Great for complex queries or when you want to understand the reasoning process
+           - May take longer but provides more detailed and thorough answers
         
         Note: OpenAI agent requires an API key in `.env` file
         """)
