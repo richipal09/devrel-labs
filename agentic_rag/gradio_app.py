@@ -36,8 +36,9 @@ vector_store = VectorStore()
 hf_token = load_config()
 openai_key = os.getenv("OPENAI_API_KEY")
 
-local_agent = LocalRAGAgent(vector_store) if hf_token else None
-openai_agent = RAGAgent(vector_store, openai_api_key=openai_key) if openai_key else None
+# Initialize agents with use_cot=True to ensure CoT is available
+local_agent = LocalRAGAgent(vector_store, use_cot=True) if hf_token else None
+openai_agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=True) if openai_key else None
 
 def process_pdf(file: tempfile._TemporaryFileWrapper) -> str:
     """Process uploaded PDF file"""
@@ -84,18 +85,22 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         print(f"Agent: {agent_type}, CoT: {use_cot}, Language: {language}, Collection: {collection}")
         print("="*50 + "\n")
         
-        # Select appropriate agent
-        agent = local_agent if agent_type == "Local (Mistral)" else openai_agent
-        if not agent:
-            response_text = "Agent not available. Please check your configuration."
-            print(f"Error: {response_text}")
-            return history + [[message, response_text]]
+        # Select appropriate agent and reinitialize with correct settings
+        if agent_type == "Local (Mistral)":
+            if not hf_token:
+                response_text = "Local agent not available. Please check your HuggingFace token configuration."
+                print(f"Error: {response_text}")
+                return history + [[message, response_text]]
+            agent = LocalRAGAgent(vector_store, use_cot=use_cot)
+        else:
+            if not openai_key:
+                response_text = "OpenAI agent not available. Please check your OpenAI API key configuration."
+                print(f"Error: {response_text}")
+                return history + [[message, response_text]]
+            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot)
         
         # Convert language selection to language code
         lang_code = "es" if language == "Spanish" else "en"
-        
-        # Set CoT option and language
-        agent.use_cot = use_cot
         agent.language = lang_code
         
         # Process query and get response
