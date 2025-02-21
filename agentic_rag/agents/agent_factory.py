@@ -8,6 +8,7 @@ class Agent(BaseModel):
     name: str
     role: str
     description: str
+    llm: Any = Field(description="Language model for the agent")
     
 class PlannerAgent(Agent):
     """Agent responsible for breaking down problems and planning steps"""
@@ -15,9 +16,9 @@ class PlannerAgent(Agent):
         super().__init__(
             name="Planner",
             role="Strategic Planner",
-            description="Breaks down complex problems into manageable steps"
+            description="Breaks down complex problems into manageable steps",
+            llm=llm
         )
-        self.llm = llm
         
     def plan(self, query: str, context: List[Dict[str, Any]] = None) -> str:
         if context:
@@ -51,14 +52,16 @@ class PlannerAgent(Agent):
 
 class ResearchAgent(Agent):
     """Agent responsible for gathering and analyzing information"""
+    vector_store: Any = Field(description="Vector store for searching")
+    
     def __init__(self, llm, vector_store):
         super().__init__(
             name="Researcher",
             role="Information Gatherer",
-            description="Gathers and analyzes relevant information from knowledge bases"
+            description="Gathers and analyzes relevant information from knowledge bases",
+            llm=llm,
+            vector_store=vector_store
         )
-        self.llm = llm
-        self.vector_store = vector_store
         
     def research(self, query: str, step: str) -> List[Dict[str, Any]]:
         # Query all collections
@@ -96,9 +99,9 @@ class ReasoningAgent(Agent):
         super().__init__(
             name="Reasoner",
             role="Logic and Analysis",
-            description="Applies logical reasoning to information and draws conclusions"
+            description="Applies logical reasoning to information and draws conclusions",
+            llm=llm
         )
-        self.llm = llm
         
     def reason(self, query: str, step: str, context: List[Dict[str, Any]]) -> str:
         template = """You are a reasoning agent. Your role is to apply logical analysis to information and draw conclusions.
@@ -127,9 +130,9 @@ class SynthesisAgent(Agent):
         super().__init__(
             name="Synthesizer",
             role="Information Synthesizer",
-            description="Combines multiple pieces of information into a coherent response"
+            description="Combines multiple pieces of information into a coherent response",
+            llm=llm
         )
-        self.llm = llm
         
     def synthesize(self, query: str, reasoning_steps: List[str]) -> str:
         template = """You are a synthesis agent. Your role is to combine multiple pieces of information into a clear, coherent response.
