@@ -47,28 +47,20 @@ class PlannerAgent(Agent):
         logger.info(f"\n🎯 Planning step for query: {query}")
         
         if context:
-            template = """You are a strategic planning agent. Your role is to break down complex problems into clear, manageable steps.
+            template = """As a strategic planner, break down this problem into 3-4 clear steps.
             
-            Given the following context and query, create a step-by-step plan to answer the question.
-            Each step should be clear and actionable.
-            
-            Context:
-            {context}
-            
+            Context: {context}
             Query: {query}
             
-            Plan:"""
+            Steps:"""
             context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" for i, item in enumerate(context)])
             logger.info(f"Using context ({len(context)} items)")
         else:
-            template = """You are a strategic planning agent. Your role is to break down complex problems into clear, manageable steps.
-            
-            Given the following query, create a step-by-step plan to answer the question.
-            Each step should be clear and actionable.
+            template = """As a strategic planner, break down this problem into 3-4 clear steps.
             
             Query: {query}
             
-            Plan:"""
+            Steps:"""
             context_str = ""
             logger.info("No context available")
             
@@ -109,15 +101,10 @@ class ResearchAgent(Agent):
             logger.warning("No relevant documents found")
             return []
             
-        # Have LLM analyze and summarize findings
-        template = """You are a research agent. Your role is to analyze information and extract relevant details.
-        
-        Given the following research step and context, summarize the key findings that are relevant to this step.
+        template = """Extract and summarize key information relevant to this step.
         
         Step: {step}
-        
-        Context:
-        {context}
+        Context: {context}
         
         Key Findings:"""
         
@@ -145,19 +132,13 @@ class ReasoningAgent(Agent):
     def reason(self, query: str, step: str, context: List[Dict[str, Any]]) -> str:
         logger.info(f"\n🤔 Reasoning about step: {step}")
         
-        template = """You are a reasoning agent. Your role is to apply logical analysis to information and draw conclusions.
-        
-        Given the following step, context, and query, apply logical reasoning to reach a conclusion.
-        Show your reasoning process clearly.
+        template = """Analyze the information and draw a clear conclusion for this step.
         
         Step: {step}
-        
-        Context:
-        {context}
-        
+        Context: {context}
         Query: {query}
         
-        Reasoning:"""
+        Conclusion:"""
         
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" for i, item in enumerate(context)])
         prompt = ChatPromptTemplate.from_template(template)
@@ -182,17 +163,12 @@ class SynthesisAgent(Agent):
     def synthesize(self, query: str, reasoning_steps: List[str]) -> str:
         logger.info(f"\n📝 Synthesizing final answer from {len(reasoning_steps)} reasoning steps")
         
-        template = """You are a synthesis agent. Your role is to combine multiple pieces of information into a clear, coherent response.
-        
-        Given the following query and reasoning steps, create a final comprehensive answer.
-        The answer should be well-structured and incorporate the key points from each step.
+        template = """Combine the reasoning steps into a clear, comprehensive answer.
         
         Query: {query}
+        Steps: {steps}
         
-        Reasoning Steps:
-        {steps}
-        
-        Final Answer:"""
+        Answer:"""
         
         steps_str = "\n\n".join([f"Step {i+1}:\n{step}" for i, step in enumerate(reasoning_steps)])
         prompt = ChatPromptTemplate.from_template(template)

@@ -114,16 +114,19 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
             print("\nChain of Thought Reasoning Steps:")
             print("-" * 50)
             
-            # Add each reasoning step
+            # Add each reasoning step with conclusion
             for i, step in enumerate(response["reasoning_steps"], 1):
                 step_text = f"Step {i}:\n{step}\n"
                 formatted_response += step_text
                 print(step_text)
+                
+                # Add intermediate response to chat history to show progress
+                history.append([None, f"🔄 Step {i} Conclusion:\n{step}"])
             
             # Add final answer
             print("\nFinal Answer:")
             print("-" * 50)
-            final_answer = "🎯 Final Answer:\n" + response["answer"]
+            final_answer = "\n🎯 Final Answer:\n" + response["answer"]
             formatted_response += final_answer
             print(final_answer)
             
@@ -145,18 +148,20 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                         source_line = f"- {source} (file: {file_path})\n"
                     formatted_response += source_line
                     print(source_line)
+            
+            # Add final formatted response to history
+            history.append([message, formatted_response])
         else:
             formatted_response = response["answer"]
             print("\nStandard Response:")
             print("-" * 50)
             print(formatted_response)
+            history.append([message, formatted_response])
         
         print("\n" + "="*50)
         print("Response complete")
         print("="*50 + "\n")
         
-        # Return updated history with new message pair
-        history.append([message, formatted_response])
         return history
     except Exception as e:
         error_msg = f"Error processing query: {str(e)}"
