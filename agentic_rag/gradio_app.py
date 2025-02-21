@@ -79,10 +79,17 @@ def process_repo(repo_path: str) -> str:
 def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str, collection: str) -> List[List[str]]:
     """Process chat message using selected agent and collection"""
     try:
+        print("\n" + "="*50)
+        print(f"New message received: {message}")
+        print(f"Agent: {agent_type}, CoT: {use_cot}, Language: {language}, Collection: {collection}")
+        print("="*50 + "\n")
+        
         # Select appropriate agent
         agent = local_agent if agent_type == "Local (Mistral)" else openai_agent
         if not agent:
-            return history + [[message, "Agent not available. Please check your configuration."]]
+            response_text = "Agent not available. Please check your configuration."
+            print(f"Error: {response_text}")
+            return history + [[message, response_text]]
         
         # Convert language selection to language code
         lang_code = "es" if language == "Spanish" else "en"
@@ -91,21 +98,68 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         agent.use_cot = use_cot
         agent.language = lang_code
         
-        # Process query based on selected collection
-        if collection == "PDF Collection":
-            context = vector_store.query_pdf_collection(message)
-            response = agent._generate_response(message, context) if context else agent._generate_general_response(message)
-        elif collection == "Repository Collection":
-            context = vector_store.query_repo_collection(message)
-            response = agent._generate_response(message, context) if context else agent._generate_general_response(message)
-        else:  # General Knowledge
-            response = agent._generate_general_response(message)
+        # Process query and get response
+        print("Processing query...")
+        response = agent.process_query(message)
+        print("Query processed successfully")
+        
+        # Format response with reasoning steps if CoT is enabled
+        if use_cot and "reasoning_steps" in response:
+            formatted_response = "🤔 Let me think about this step by step:\n\n"
+            print("\nChain of Thought Reasoning Steps:")
+            print("-" * 50)
+            
+            # Add each reasoning step
+            for i, step in enumerate(response["reasoning_steps"], 1):
+                step_text = f"Step {i}:\n{step}\n"
+                formatted_response += step_text
+                print(step_text)
+            
+            # Add final answer
+            print("\nFinal Answer:")
+            print("-" * 50)
+            final_answer = "🎯 Final Answer:\n" + response["answer"]
+            formatted_response += final_answer
+            print(final_answer)
+            
+            # Add sources if available
+            if response.get("context"):
+                print("\nSources Used:")
+                print("-" * 50)
+                sources_text = "\n📚 Sources used:\n"
+                formatted_response += sources_text
+                print(sources_text)
+                
+                for ctx in response["context"]:
+                    source = ctx["metadata"].get("source", "Unknown")
+                    if "page_numbers" in ctx["metadata"]:
+                        pages = ctx["metadata"].get("page_numbers", [])
+                        source_line = f"- {source} (pages: {pages})\n"
+                    else:
+                        file_path = ctx["metadata"].get("file_path", "Unknown")
+                        source_line = f"- {source} (file: {file_path})\n"
+                    formatted_response += source_line
+                    print(source_line)
+        else:
+            formatted_response = response["answer"]
+            print("\nStandard Response:")
+            print("-" * 50)
+            print(formatted_response)
+        
+        print("\n" + "="*50)
+        print("Response complete")
+        print("="*50 + "\n")
         
         # Return updated history with new message pair
-        history.append([message, response["answer"]])
+        history.append([message, formatted_response])
         return history
     except Exception as e:
-        history.append([message, f"Error processing query: {str(e)}"])
+        error_msg = f"Error processing query: {str(e)}"
+        print(f"\nError occurred:")
+        print("-" * 50)
+        print(error_msg)
+        print("="*50 + "\n")
+        history.append([message, error_msg])
         return history
 
 def create_interface():
