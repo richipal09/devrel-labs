@@ -10,6 +10,10 @@ import os
 import pandas as pd
 from pathlib import Path
 
+import logging
+# Enable debug logging
+logging.getLogger('oci').setLevel(logging.DEBUG)
+
 def generate_job_name():
     """Generate a unique job name with timestamp"""
     current_date = datetime.date.today()
@@ -44,6 +48,11 @@ def translate_csv(ai_client, input_file, output_file, columns_to_translate, sour
             bucket_name=bucket,
             object_names=[input_file]
         )
+
+        #input_location = oci.ai_language.models.ObjectStoragePrefixLocation(
+        #    namespace_name=namespace,
+        #    bucket_name=bucket,
+        #)
 
         # Set up model metadata
         model_metadata_details = oci.ai_language.models.ModelMetadataDetails(
@@ -160,6 +169,7 @@ def translate_json(ai_client, input_file, output_file, keys_to_translate, source
             print(f"{datetime.datetime.now()}: Job status: {current_state}")
             
             if current_state in ["SUCCEEDED", "FAILED"]:
+                print('Job ID {}'.format(job_id))
                 break
             time.sleep(5)
 
@@ -189,7 +199,7 @@ def main():
         config = load_config()
         
         # Initialize OCI client using default config
-        oci_config = oci.config.from_file()
+        oci_config = oci.config.from_file(profile_name="comm")
         ai_client = oci.ai_language.AIServiceLanguageClient(config=oci_config)
 
         # Get configuration values
