@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class QueryAnalysis(BaseModel):
     """Pydantic model for query analysis output"""
     query_type: str = Field(
-        description="Type of query: 'pdf_documents', 'general_knowledge', or 'unsupported'"
+        description="Type of query: 'pdf_documents', 'repository_documents', 'general_knowledge', or 'unsupported'"
     )
     reasoning: str = Field(
         description="Reasoning behind the query type selection"
@@ -172,13 +172,21 @@ class LocalRAGAgent:
         # Get initial context if needed
         initial_context = []
         if analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]:
-            if self.collection == "PDF Collection" or not self.collection:
+            if self.collection == "PDF Collection" or (not self.collection and analysis.query_type == "pdf_documents"):
                 pdf_context = self.vector_store.query_pdf_collection(query)
                 initial_context.extend(pdf_context)
             
-            if self.collection == "Repository Collection" or not self.collection:
+            if self.collection == "Repository Collection" or (not self.collection and analysis.query_type == "repository_documents"):
                 repo_context = self.vector_store.query_repo_collection(query)
                 initial_context.extend(repo_context)
+            
+            # If no specific collection type is identified but context is required, query both
+            if not self.collection and analysis.requires_context and analysis.query_type not in ["pdf_documents", "repository_documents", "general_knowledge"]:
+                if not initial_context:  # Only if we haven't already added context
+                    pdf_context = self.vector_store.query_pdf_collection(query)
+                    repo_context = self.vector_store.query_repo_collection(query)
+                    initial_context.extend(pdf_context)
+                    initial_context.extend(repo_context)
         
         try:
             # Step 1: Planning
@@ -258,8 +266,14 @@ class LocalRAGAgent:
             repo_context = self.vector_store.query_repo_collection(query)
         # For CoT with no explicit collection, use analysis to determine
         elif not self.collection and analysis.requires_context:
-            pdf_context = self.vector_store.query_pdf_collection(query)
-            repo_context = self.vector_store.query_repo_collection(query)
+            if analysis.query_type == "pdf_documents":
+                pdf_context = self.vector_store.query_pdf_collection(query)
+            elif analysis.query_type == "repository_documents":
+                repo_context = self.vector_store.query_repo_collection(query)
+            else:
+                # For other types, query both collections
+                pdf_context = self.vector_store.query_pdf_collection(query)
+                repo_context = self.vector_store.query_repo_collection(query)
         
         # Combine all context
         all_context = pdf_context + repo_context
@@ -283,7 +297,7 @@ class LocalRAGAgent:
             )
         elif self.collection == "Repository Collection":
             return QueryAnalysis(
-                query_type="pdf_documents",  # We still use pdf_documents type but will query repo collection
+                query_type="repository_documents",  # Changed from pdf_documents to repository_documents
                 reasoning="Using Repository collection as explicitly selected by user",
                 requires_context=True
             )
@@ -298,7 +312,7 @@ class LocalRAGAgent:
         prompt = f"""You are an intelligent agent that analyzes user queries to determine the best source of information.
 
     Analyze the following query and determine:
-    1. Whether it should query the PDF documents collection or general knowledge collection
+    1. Whether it should query the PDF documents collection, repository code collection, or general knowledge collection
     2. Your reasoning for this decision
     3. Whether the query requires additional context to provide a good answer
 
@@ -306,7 +320,7 @@ class LocalRAGAgent:
 
     Provide your response in the following JSON format:
     {{
-        "query_type": "pdf_documents OR general_knowledge OR unsupported",
+        "query_type": "pdf_documents OR repository_documents OR general_knowledge OR unsupported",
         "reasoning": "your reasoning here",
         "requires_context": true OR false
     }}
