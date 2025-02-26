@@ -66,7 +66,23 @@ class RAGAgent:
     
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Analyze the query
+        # Skip analysis entirely if General Knowledge is explicitly selected
+        if self.collection == "General Knowledge":
+            logger.info("General Knowledge collection explicitly selected, skipping query analysis")
+            # Create a dummy analysis object for logging consistency
+            analysis = QueryAnalysis(
+                query_type="general_knowledge",
+                reasoning="Using General Knowledge as explicitly selected by user",
+                requires_context=False
+            )
+            logger.info(f"Query analysis: {analysis}")
+            
+            if self.use_cot:
+                return self._process_query_with_cot(query, analysis)
+            else:
+                return self._generate_general_response(query)
+        
+        # For other cases, perform normal analysis
         analysis = self._analyze_query(query)
         logger.info(f"Query analysis: {analysis}")
         
@@ -232,7 +248,7 @@ Answer:"""
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:
         """Generate a response using general knowledge when no context is available"""
-        template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
+        template = """You are a helpful AI assistant. Answer the following query using your general knowledge.
 
 Query: {query}
 
@@ -242,10 +258,8 @@ Answer:"""
         messages = prompt.format_messages(query=query)
         response = self.llm.invoke(messages)
         
-        prefix = "I didn't find specific information in my documents, but here's what I know about it:\n\n"
-        
         return {
-            "answer": prefix + response.content,
+            "answer": response.content,
             "context": []
         }
 
