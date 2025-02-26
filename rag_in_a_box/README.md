@@ -14,6 +14,8 @@ This solution includes 2 containers:
 - Oracle Database 23ai
 - AIRAG Container
 
+<img src="./images/airag_in_a_box.png" alt="Podman commands" width="80%">
+
 ## 1. Install the containers
 
 #### Windows Deployment
@@ -48,17 +50,20 @@ podman images
 ```
 
 3. Check running containers:
+
 ```bash
 podman ps
 ```
 
 4. Check container logs:
+
 ```bash
 podman logs -f 23aidb
 podman logs -f airagdb23aiinbox
 ```
 
 5. Connect to the database:
+
 ```bash
 podman exec -it 23aidb sqlplus VECDEMO/<pwd>@FREEPDB1
 ```
