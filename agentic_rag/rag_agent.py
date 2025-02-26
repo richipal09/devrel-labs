@@ -53,12 +53,34 @@ class RAGAgent:
         # Get initial context based on selected collection
         initial_context = []
         if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
             pdf_context = self.vector_store.query_pdf_collection(query)
             initial_context.extend(pdf_context)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(pdf_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                pages = chunk["metadata"].get("page_numbers", [])
+                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
         elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
             initial_context.extend(repo_context)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(repo_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                file_path = chunk["metadata"].get("file_path", "Unknown")
+                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
         # For General Knowledge, no context is needed
+        else:
+            logger.info("Using General Knowledge collection, no context retrieval needed")
         
         try:
             # Step 1: Planning
@@ -79,7 +101,9 @@ class RAGAgent:
                         continue
                     step_research = self.agents["researcher"].research(query, step)
                     research_results.append({"step": step, "findings": step_research})
-                    logger.info(f"Research for step: {step}\nFindings: {step_research}")
+                    # Log which sources were used for this step
+                    source_indices = [initial_context.index(finding) + 1 for finding in step_research if finding in initial_context]
+                    logger.info(f"Research for step: {step}\nUsing sources: {source_indices}")
             else:
                 # If no researcher or no context, use the steps directly
                 research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
@@ -128,17 +152,39 @@ class RAGAgent:
         
         # Get context based on selected collection
         if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
             pdf_context = self.vector_store.query_pdf_collection(query)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(pdf_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                pages = chunk["metadata"].get("page_numbers", [])
+                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
         elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(repo_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                file_path = chunk["metadata"].get("file_path", "Unknown")
+                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
         if all_context:
+            logger.info(f"Generating response using {len(all_context)} context chunks")
             response = self._generate_response(query, all_context)
         else:
+            logger.info("No context found, using general knowledge")
             response = self._generate_general_response(query)
         
         return response
@@ -193,6 +239,7 @@ def main():
     parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
                         help="Specify which collection to query")
     parser.add_argument("--skip-analysis", action="store_true", help="Skip query analysis step")
+    parser.add_argument("--verbose", action="store_true", help="Show full content of sources")
     
     args = parser.parse_args()
     
@@ -235,14 +282,22 @@ def main():
         
         if response.get("context"):
             print("\nSources used:")
-            for ctx in response["context"]:
+            print("-" * 50)
+            
+            # Print concise list of sources
+            for i, ctx in enumerate(response["context"]):
                 source = ctx["metadata"].get("source", "Unknown")
                 if "page_numbers" in ctx["metadata"]:
                     pages = ctx["metadata"].get("page_numbers", [])
-                    print(f"- {source} (pages: {pages})")
+                    print(f"[{i+1}] {source} (pages: {pages})")
                 else:
                     file_path = ctx["metadata"].get("file_path", "Unknown")
-                    print(f"- {source} (file: {file_path})")
+                    print(f"[{i+1}] {source} (file: {file_path})")
+                
+                # Only print content if verbose flag is set
+                if args.verbose:
+                    content_preview = ctx["content"][:300] + "..." if len(ctx["content"]) > 300 else ctx["content"]
+                    print(f"    Content: {content_preview}\n")
     
     except Exception as e:
         print(f"\n✗ Error: {str(e)}")
