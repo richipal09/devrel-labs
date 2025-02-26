@@ -8,6 +8,7 @@ import argparse
 import yaml
 import os
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(
@@ -54,11 +55,12 @@ class LocalLLM:
         return Response(result.strip())
 
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en"):
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en", collection: str = None):
         """Initialize local RAG agent with vector store and local LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.language = language
+        self.collection = collection
         
         # Load HuggingFace token from config
         try:
@@ -72,15 +74,29 @@ class LocalRAGAgent:
         
         # Load model and tokenizer
         print("\nLoading model and tokenizer...")
+        print("Note: Initial loading and inference with Mistral-7B can take 1-5 minutes depending on your hardware.")
+        print("Subsequent queries will be faster but may still take 30-60 seconds per response.")
+        
+        # Check if CUDA is available and set appropriate dtype
+        if torch.cuda.is_available():
+            print("CUDA is available. Using GPU acceleration.")
+            dtype = torch.float16
+        else:
+            print("CUDA is not available. Using CPU only (this will be slow).")
+            dtype = torch.float32
+        
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=torch.float16,
+            torch_dtype=dtype,
             device_map="auto",
-            token=token
+            token=token,
+            # Add optimization flags
+            low_cpu_mem_usage=True,
+            offload_folder="offload"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
         
-        # Create text generation pipeline
+        # Create text generation pipeline with optimized settings
         self.pipeline = pipeline(
             "text-generation",
             model=self.model,
@@ -116,10 +132,14 @@ class LocalRAGAgent:
         
         # Get initial context if needed
         initial_context = []
-        if analysis.requires_context and analysis.query_type != "unsupported":
-            pdf_context = self.vector_store.query_pdf_collection(query)
-            repo_context = self.vector_store.query_repo_collection(query)
-            initial_context = pdf_context + repo_context
+        if analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]:
+            if self.collection == "PDF Collection" or not self.collection:
+                pdf_context = self.vector_store.query_pdf_collection(query)
+                initial_context.extend(pdf_context)
+            
+            if self.collection == "Repository Collection" or not self.collection:
+                repo_context = self.vector_store.query_repo_collection(query)
+                initial_context.extend(repo_context)
         
         try:
             # Step 1: Planning
@@ -187,17 +207,22 @@ class LocalRAGAgent:
         if analysis.query_type == "unsupported":
             return self._generate_general_response(query)
         
-        # First try to get context from PDF documents
-        pdf_context = self.vector_store.query_pdf_collection(query)
+        # Initialize context variables
+        pdf_context = []
+        repo_context = []
         
-        # Then try repository documents
-        repo_context = self.vector_store.query_repo_collection(query)
+        # Query appropriate collections based on analysis and explicit collection selection
+        if self.collection == "PDF Collection" or (analysis.requires_context and not self.collection):
+            pdf_context = self.vector_store.query_pdf_collection(query)
+        
+        if self.collection == "Repository Collection" or (analysis.requires_context and not self.collection):
+            repo_context = self.vector_store.query_repo_collection(query)
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if all_context and analysis.requires_context:
+        if all_context and (analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]):
             response = self._generate_response(query, all_context)
         else:
             response = self._generate_general_response(query)
@@ -206,6 +231,27 @@ class LocalRAGAgent:
     
     def _analyze_query(self, query: str) -> QueryAnalysis:
         """Analyze the query to determine the best source of information"""
+        # If collection is explicitly set, override the analysis
+        if self.collection == "PDF Collection":
+            return QueryAnalysis(
+                query_type="pdf_documents",
+                reasoning="Using PDF collection as explicitly selected by user",
+                requires_context=True
+            )
+        elif self.collection == "Repository Collection":
+            return QueryAnalysis(
+                query_type="pdf_documents",  # We still use pdf_documents type but will query repo collection
+                reasoning="Using Repository collection as explicitly selected by user",
+                requires_context=True
+            )
+        elif self.collection == "General Knowledge":
+            return QueryAnalysis(
+                query_type="general_knowledge",
+                reasoning="Using General Knowledge as explicitly selected by user",
+                requires_context=False
+            )
+        
+        # If no collection is explicitly set, perform normal analysis
         prompt = f"""You are an intelligent agent that analyzes user queries to determine the best source of information.
 
     Analyze the following query and determine:
@@ -243,6 +289,9 @@ class LocalRAGAgent:
     
     def _generate_text(self, prompt: str, max_length: int = 512) -> str:
         """Generate text using the local model"""
+        # Log start time for performance monitoring
+        start_time = time.time()
+        
         result = self.pipeline(
             prompt,
             max_new_tokens=max_length,
@@ -251,6 +300,10 @@ class LocalRAGAgent:
             top_p=0.95,
             return_full_text=False
         )[0]["generated_text"]
+        
+        # Log completion time
+        elapsed_time = time.time() - start_time
+        logger.info(f"Text generation completed in {elapsed_time:.2f} seconds")
         
         return result.strip()
     
@@ -303,6 +356,8 @@ def main():
     parser.add_argument("--model", default="mistralai/Mistral-7B-Instruct-v0.2", help="Model to use")
     parser.add_argument("--quiet", action="store_true", help="Disable verbose logging")
     parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
+    parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
+                        help="Specify which collection to query")
     
     args = parser.parse_args()
     
@@ -319,7 +374,7 @@ def main():
         logger.info(f"Initializing vector store from: {args.store_path}")
         store = VectorStore(persist_directory=args.store_path)
         logger.info("Initializing local RAG agent...")
-        agent = LocalRAGAgent(store, model_name=args.model, use_cot=args.use_cot)
+        agent = LocalRAGAgent(store, model_name=args.model, use_cot=args.use_cot, collection=args.collection)
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)

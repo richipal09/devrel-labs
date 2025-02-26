@@ -27,11 +27,12 @@ class QueryAnalysis(BaseModel):
     )
 
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, language: str = "en"):
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, language: str = "en", collection: str = None):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.language = language
+        self.collection = collection
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
@@ -80,10 +81,14 @@ class RAGAgent:
         
         # Get initial context if needed
         initial_context = []
-        if analysis.requires_context and analysis.query_type != "unsupported":
-            pdf_context = self.vector_store.query_pdf_collection(query)
-            repo_context = self.vector_store.query_repo_collection(query)
-            initial_context = pdf_context + repo_context
+        if analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]:
+            if self.collection == "PDF Collection" or not self.collection:
+                pdf_context = self.vector_store.query_pdf_collection(query)
+                initial_context.extend(pdf_context)
+            
+            if self.collection == "Repository Collection" or not self.collection:
+                repo_context = self.vector_store.query_repo_collection(query)
+                initial_context.extend(repo_context)
         
         try:
             # Step 1: Planning
@@ -151,17 +156,22 @@ class RAGAgent:
         if analysis.query_type == "unsupported":
             return self._generate_general_response(query)
         
-        # First try to get context from PDF documents
-        pdf_context = self.vector_store.query_pdf_collection(query)
+        # Initialize context variables
+        pdf_context = []
+        repo_context = []
         
-        # Then try repository documents
-        repo_context = self.vector_store.query_repo_collection(query)
+        # Query appropriate collections based on analysis and explicit collection selection
+        if self.collection == "PDF Collection" or (analysis.requires_context and not self.collection):
+            pdf_context = self.vector_store.query_pdf_collection(query)
+        
+        if self.collection == "Repository Collection" or (analysis.requires_context and not self.collection):
+            repo_context = self.vector_store.query_repo_collection(query)
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if all_context and analysis.requires_context:
+        if all_context and (analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]):
             response = self._generate_response(query, all_context)
         else:
             response = self._generate_general_response(query)
@@ -170,6 +180,27 @@ class RAGAgent:
     
     def _analyze_query(self, query: str) -> QueryAnalysis:
         """Analyze the query to determine the best source of information"""
+        # If collection is explicitly set, override the analysis
+        if self.collection == "PDF Collection":
+            return QueryAnalysis(
+                query_type="pdf_documents",
+                reasoning="Using PDF collection as explicitly selected by user",
+                requires_context=True
+            )
+        elif self.collection == "Repository Collection":
+            return QueryAnalysis(
+                query_type="pdf_documents",  # We still use pdf_documents type but will query repo collection
+                reasoning="Using Repository collection as explicitly selected by user",
+                requires_context=True
+            )
+        elif self.collection == "General Knowledge":
+            return QueryAnalysis(
+                query_type="general_knowledge",
+                reasoning="Using General Knowledge as explicitly selected by user",
+                requires_context=False
+            )
+        
+        # If no collection is explicitly set, perform normal analysis
         chain_input = {"query": query}
         result = self.llm.invoke(self.query_analyzer["prompt"].format_messages(**chain_input))
         return self.query_analyzer["parser"].parse(result.content)
@@ -223,6 +254,8 @@ def main():
     parser.add_argument("--query", required=True, help="Query to process")
     parser.add_argument("--store-path", default="chroma_db", help="Path to the vector store")
     parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
+    parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
+                        help="Specify which collection to query")
     
     args = parser.parse_args()
     
@@ -239,7 +272,7 @@ def main():
     
     try:
         store = VectorStore(persist_directory=args.store_path)
-        agent = RAGAgent(store, openai_api_key=os.getenv("OPENAI_API_KEY"), use_cot=args.use_cot)
+        agent = RAGAgent(store, openai_api_key=os.getenv("OPENAI_API_KEY"), use_cot=args.use_cot, collection=args.collection)
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)
@@ -261,8 +294,12 @@ def main():
             print("\nSources used:")
             for ctx in response["context"]:
                 source = ctx["metadata"].get("source", "Unknown")
-                pages = ctx["metadata"].get("page_numbers", [])
-                print(f"- {source} (pages: {pages})")
+                if "page_numbers" in ctx["metadata"]:
+                    pages = ctx["metadata"].get("page_numbers", [])
+                    print(f"- {source} (pages: {pages})")
+                else:
+                    file_path = ctx["metadata"].get("file_path", "Unknown")
+                    print(f"- {source} (file: {file_path})")
     
     except Exception as e:
         print(f"\n✗ Error: {str(e)}")

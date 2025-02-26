@@ -91,13 +91,13 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                 response_text = "Local agent not available. Please check your HuggingFace token configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = LocalRAGAgent(vector_store, use_cot=use_cot)
+            agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection)
         else:
             if not openai_key:
                 response_text = "OpenAI agent not available. Please check your OpenAI API key configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot)
+            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, collection=collection)
         
         # Convert language selection to language code
         lang_code = "es" if language == "Spanish" else "en"
@@ -179,6 +179,8 @@ def create_interface():
         # 🤖 Agentic RAG System
         
         Upload PDFs, process web content, repositories, and chat with your documents using local or OpenAI models.
+        
+        > **Note on Performance**: When using the Local (Mistral) model, initial loading can take 1-5 minutes, and each query may take 30-60 seconds to process depending on your hardware. OpenAI queries are typically much faster.
         """)
         
         with gr.Tab("Document Processing"):
@@ -218,6 +220,11 @@ def create_interface():
                         value="PDF Collection",
                         label="Knowledge Collection"
                     )
+            gr.Markdown("""
+            > **Collection Selection**: 
+            > - When "PDF Collection" or "Repository Collection" is selected, the system will ALWAYS search that collection regardless of the query type.
+            > - When "General Knowledge" is selected, the system will use the model's built-in knowledge without searching collections.
+            """)
             standard_chatbot = gr.Chatbot(height=400)
             with gr.Row():
                 standard_msg = gr.Textbox(label="Your Message", scale=9)
@@ -244,6 +251,11 @@ def create_interface():
                         value="PDF Collection",
                         label="Knowledge Collection"
                     )
+            gr.Markdown("""
+            > **Collection Selection**: 
+            > - When "PDF Collection" or "Repository Collection" is selected, the system will ALWAYS search that collection regardless of the query type.
+            > - When "General Knowledge" is selected, the system will use the model's built-in knowledge without searching collections.
+            """)
             cot_chatbot = gr.Chatbot(height=400)
             with gr.Row():
                 cot_msg = gr.Textbox(label="Your Message", scale=9)
@@ -323,13 +335,22 @@ def create_interface():
            - Quick responses without detailed reasoning steps
            - Select your preferred agent (Local Mistral or OpenAI)
            - Choose your preferred response language
-           - Select which knowledge collection to query
+           - Select which knowledge collection to query:
+             - **PDF Collection**: Always searches PDF documents
+             - **Repository Collection**: Always searches code repositories
+             - **General Knowledge**: Uses the model's built-in knowledge without searching collections
         
         3. **Chain of Thought Chat Interface**:
            - Detailed responses with step-by-step reasoning
            - See the planning, research, reasoning, and synthesis steps
            - Great for complex queries or when you want to understand the reasoning process
            - May take longer but provides more detailed and thorough answers
+           - Same collection selection options as the Standard Chat Interface
+        
+        4. **Performance Expectations**:
+           - **Local (Mistral) model**: Initial loading takes 1-5 minutes, each query takes 30-60 seconds
+           - **OpenAI model**: Much faster responses, typically a few seconds per query
+           - Chain of Thought reasoning takes longer for both models
         
         Note: OpenAI agent requires an API key in `.env` file
         """)
