@@ -118,9 +118,9 @@ class LocalRAGAgent:
     
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Skip analysis if explicitly requested or if General Knowledge is selected
-        if self.skip_analysis or self.collection == "General Knowledge":
-            logger.info("Skipping query analysis (explicitly requested or General Knowledge selected)")
+        # Skip analysis if explicitly requested, if General Knowledge is selected, or if not using CoT
+        if self.skip_analysis or self.collection == "General Knowledge" or not self.use_cot:
+            logger.info("Skipping query analysis (explicitly requested, General Knowledge selected, or standard interface)")
             
             # Create a dummy analysis object for logging consistency
             if self.collection == "PDF Collection":
@@ -151,13 +151,13 @@ class LocalRAGAgent:
                 else:
                     return self._generate_general_response(query)
             
-            # For other collections with skip_analysis, use standard processing
+            # For other collections with skip_analysis, use standard processing with context
             if self.use_cot:
                 return self._process_query_with_cot(query, analysis)
             else:
                 return self._process_query_standard(query, analysis)
         
-        # For cases where analysis is required, perform normal analysis
+        # For cases where analysis is required (only in CoT with no explicit collection)
         analysis = self._analyze_query(query)
         logger.info(f"Query analysis: {analysis}")
         
@@ -243,26 +243,30 @@ class LocalRAGAgent:
     
     def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
         """Process query using standard approach without Chain of Thought"""
-        # If query type is unsupported, use general knowledge
-        if analysis.query_type == "unsupported":
+        # If query type is unsupported and not in a specific collection, use general knowledge
+        if analysis.query_type == "unsupported" and not self.collection:
             return self._generate_general_response(query)
         
         # Initialize context variables
         pdf_context = []
         repo_context = []
         
-        # Query appropriate collections based on analysis and explicit collection selection
-        if self.collection == "PDF Collection" or (analysis.requires_context and not self.collection):
+        # In standard interface (not CoT), always use the selected collection
+        # regardless of analysis.requires_context
+        if self.collection == "PDF Collection":
             pdf_context = self.vector_store.query_pdf_collection(query)
-        
-        if self.collection == "Repository Collection" or (analysis.requires_context and not self.collection):
+        elif self.collection == "Repository Collection":
+            repo_context = self.vector_store.query_repo_collection(query)
+        # For CoT with no explicit collection, use analysis to determine
+        elif not self.collection and analysis.requires_context:
+            pdf_context = self.vector_store.query_pdf_collection(query)
             repo_context = self.vector_store.query_repo_collection(query)
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if all_context and (analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]):
+        if all_context:
             response = self._generate_response(query, all_context)
         else:
             response = self._generate_general_response(query)

@@ -226,8 +226,10 @@ def create_interface():
                     )
             gr.Markdown("""
             > **Collection Selection**: 
-            > - When "PDF Collection" or "Repository Collection" is selected, the system will ALWAYS search that collection regardless of the query type.
-            > - When "General Knowledge" is selected, the system will use the model's built-in knowledge without searching collections.
+            > - This interface ALWAYS uses the selected collection without performing query analysis.
+            > - "PDF Collection": Will ALWAYS search the PDF documents regardless of query type.
+            > - "Repository Collection": Will ALWAYS search the repository code regardless of query type.
+            > - "General Knowledge": Will ALWAYS use the model's built-in knowledge without searching collections.
             """)
             standard_chatbot = gr.Chatbot(height=400)
             with gr.Row():
@@ -257,8 +259,11 @@ def create_interface():
                     )
             gr.Markdown("""
             > **Collection Selection**: 
-            > - When "PDF Collection" or "Repository Collection" is selected, the system will ALWAYS search that collection regardless of the query type.
-            > - When "General Knowledge" is selected, the system will use the model's built-in knowledge without searching collections.
+            > - When a specific collection is selected, the system will ALWAYS use that collection without analysis:
+            >   - "PDF Collection": Will ALWAYS search the PDF documents.
+            >   - "Repository Collection": Will ALWAYS search the repository code.
+            >   - "General Knowledge": Will ALWAYS use the model's built-in knowledge.
+            > - This interface shows step-by-step reasoning and may perform query analysis when needed.
             """)
             cot_chatbot = gr.Chatbot(height=400)
             with gr.Row():
