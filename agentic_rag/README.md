@@ -14,6 +14,13 @@ The system has the following features:
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
 - Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
 
+<img src="img/gradio_1.png" alt="Gradio Interface" width="80%">
+
+<img src="img/gradio_2.png" alt="Gradio Interface" width="80%">
+
+<img src="img/gradio_3.png" alt="Gradio Interface" width="80%">
+
+
 ## 0. Prerequisites and setup
 
 ### Prerequisites
