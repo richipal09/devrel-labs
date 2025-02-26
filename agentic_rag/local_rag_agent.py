@@ -55,12 +55,13 @@ class LocalLLM:
         return Response(result.strip())
 
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en", collection: str = None):
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en", collection: str = None, skip_analysis: bool = False):
         """Initialize local RAG agent with vector store and local LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.language = language
         self.collection = collection
+        self.skip_analysis = skip_analysis
         
         # Load HuggingFace token from config
         try:
@@ -117,23 +118,46 @@ class LocalRAGAgent:
     
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Skip analysis entirely if General Knowledge is explicitly selected
-        if self.collection == "General Knowledge":
-            logger.info("General Knowledge collection explicitly selected, skipping query analysis")
-            # Create a dummy analysis object for logging consistency
-            analysis = QueryAnalysis(
-                query_type="general_knowledge",
-                reasoning="Using General Knowledge as explicitly selected by user",
-                requires_context=False
-            )
-            logger.info(f"Query analysis: {analysis}")
+        # Skip analysis if explicitly requested or if General Knowledge is selected
+        if self.skip_analysis or self.collection == "General Knowledge":
+            logger.info("Skipping query analysis (explicitly requested or General Knowledge selected)")
             
+            # Create a dummy analysis object for logging consistency
+            if self.collection == "PDF Collection":
+                analysis = QueryAnalysis(
+                    query_type="pdf_documents",
+                    reasoning="Using PDF collection as explicitly selected by user",
+                    requires_context=True
+                )
+            elif self.collection == "Repository Collection":
+                analysis = QueryAnalysis(
+                    query_type="pdf_documents",  # We still use pdf_documents type but will query repo collection
+                    reasoning="Using Repository collection as explicitly selected by user",
+                    requires_context=True
+                )
+            else:  # General Knowledge or no collection specified
+                analysis = QueryAnalysis(
+                    query_type="general_knowledge",
+                    reasoning="Using General Knowledge as explicitly selected by user",
+                    requires_context=False
+                )
+            
+            logger.info(f"Query analysis (skipped): {analysis}")
+            
+            # For General Knowledge, directly use general response
+            if self.collection == "General Knowledge":
+                if self.use_cot:
+                    return self._process_query_with_cot(query, analysis)
+                else:
+                    return self._generate_general_response(query)
+            
+            # For other collections with skip_analysis, use standard processing
             if self.use_cot:
                 return self._process_query_with_cot(query, analysis)
             else:
-                return self._generate_general_response(query)
+                return self._process_query_standard(query, analysis)
         
-        # For other cases, perform normal analysis
+        # For cases where analysis is required, perform normal analysis
         analysis = self._analyze_query(query)
         logger.info(f"Query analysis: {analysis}")
         
@@ -372,6 +396,7 @@ def main():
     parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
     parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
                         help="Specify which collection to query")
+    parser.add_argument("--skip-analysis", action="store_true", help="Skip query analysis step")
     
     args = parser.parse_args()
     
@@ -388,7 +413,13 @@ def main():
         logger.info(f"Initializing vector store from: {args.store_path}")
         store = VectorStore(persist_directory=args.store_path)
         logger.info("Initializing local RAG agent...")
-        agent = LocalRAGAgent(store, model_name=args.model, use_cot=args.use_cot, collection=args.collection)
+        agent = LocalRAGAgent(
+            store, 
+            model_name=args.model, 
+            use_cot=args.use_cot, 
+            collection=args.collection,
+            skip_analysis=args.skip_analysis
+        )
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)

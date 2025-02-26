@@ -85,19 +85,23 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         print(f"Agent: {agent_type}, CoT: {use_cot}, Language: {language}, Collection: {collection}")
         print("="*50 + "\n")
         
+        # Determine if we should skip analysis based on collection and interface type
+        # Skip analysis for General Knowledge or when using standard chat interface (not CoT)
+        skip_analysis = collection == "General Knowledge" or not use_cot
+        
         # Select appropriate agent and reinitialize with correct settings
         if agent_type == "Local (Mistral)":
             if not hf_token:
                 response_text = "Local agent not available. Please check your HuggingFace token configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection)
+            agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, skip_analysis=skip_analysis)
         else:
             if not openai_key:
                 response_text = "OpenAI agent not available. Please check your OpenAI API key configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, collection=collection)
+            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, collection=collection, skip_analysis=skip_analysis)
         
         # Convert language selection to language code
         lang_code = "es" if language == "Spanish" else "en"
