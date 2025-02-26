@@ -1,8 +1,6 @@
 from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
 from store import VectorStore
 from agents.agent_factory import create_agents
 import os
@@ -14,128 +12,53 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class QueryAnalysis(BaseModel):
-    """Pydantic model for query analysis output"""
-    query_type: str = Field(
-        description="Type of query: 'pdf_documents', 'repository_documents', 'general_knowledge', or 'unsupported'"
-    )
-    reasoning: str = Field(
-        description="Reasoning behind the query type selection"
-    )
-    requires_context: bool = Field(
-        description="Whether the query requires additional context to answer"
-    )
-
 class RAGAgent:
     def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, collection: str = None, skip_analysis: bool = False):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.collection = collection
-        self.skip_analysis = skip_analysis
+        # skip_analysis parameter kept for backward compatibility but no longer used
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
             api_key=openai_api_key
         )
-        self.query_analyzer = self._create_query_analyzer()
         
         # Initialize specialized agents
         self.agents = create_agents(self.llm, vector_store) if use_cot else None
     
-    def _create_query_analyzer(self):
-        """Create a chain for analyzing queries"""
-        template = """You are an intelligent agent that analyzes user queries to determine the best source of information.
-        
-        Analyze the following query and determine:
-        1. Whether it should query the PDF documents collection, repository code collection, or general knowledge collection
-        2. Your reasoning for this decision
-        3. Whether the query requires additional context to provide a good answer
-        
-        Query: {query}
-        
-        {format_instructions}
-        """
-        
-        prompt = ChatPromptTemplate.from_template(template)
-        output_parser = PydanticOutputParser(pydantic_object=QueryAnalysis)
-        
-        prompt = prompt.partial(format_instructions=output_parser.get_format_instructions())
-        
-        return {"prompt": prompt, "parser": output_parser}
-    
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Skip analysis if explicitly requested, if General Knowledge is selected, or if not using CoT
-        if self.skip_analysis or self.collection == "General Knowledge" or not self.use_cot:
-            logger.info("Skipping query analysis (explicitly requested, General Knowledge selected, or standard interface)")
-            
-            # Create a dummy analysis object for logging consistency
-            if self.collection == "PDF Collection":
-                analysis = QueryAnalysis(
-                    query_type="pdf_documents",
-                    reasoning="Using PDF collection as explicitly selected by user",
-                    requires_context=True
-                )
-            elif self.collection == "Repository Collection":
-                analysis = QueryAnalysis(
-                    query_type="pdf_documents",  # We still use pdf_documents type but will query repo collection
-                    reasoning="Using Repository collection as explicitly selected by user",
-                    requires_context=True
-                )
-            else:  # General Knowledge or no collection specified
-                analysis = QueryAnalysis(
-                    query_type="general_knowledge",
-                    reasoning="Using General Knowledge as explicitly selected by user",
-                    requires_context=False
-                )
-            
-            logger.info(f"Query analysis (skipped): {analysis}")
-            
+        logger.info(f"Processing query with collection: {self.collection}")
+        
+        # Process based on collection type and CoT setting
+        if self.collection == "General Knowledge":
             # For General Knowledge, directly use general response
-            if self.collection == "General Knowledge":
-                if self.use_cot:
-                    return self._process_query_with_cot(query, analysis)
-                else:
-                    return self._generate_general_response(query)
-            
-            # For other collections with skip_analysis, use standard processing with context
             if self.use_cot:
-                return self._process_query_with_cot(query, analysis)
+                return self._process_query_with_cot(query)
             else:
-                return self._process_query_standard(query, analysis)
-        
-        # For cases where analysis is required (only in CoT with no explicit collection)
-        analysis = self._analyze_query(query)
-        logger.info(f"Query analysis: {analysis}")
-        
-        if self.use_cot:
-            return self._process_query_with_cot(query, analysis)
+                return self._generate_general_response(query)
         else:
-            return self._process_query_standard(query, analysis)
+            # For PDF or Repository collections, use context-based processing
+            if self.use_cot:
+                return self._process_query_with_cot(query)
+            else:
+                return self._process_query_standard(query)
     
-    def _process_query_with_cot(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_with_cot(self, query: str) -> Dict[str, Any]:
         """Process query using Chain of Thought reasoning with multiple agents"""
         logger.info("Processing query with Chain of Thought reasoning")
         
-        # Get initial context if needed
+        # Get initial context based on selected collection
         initial_context = []
-        if analysis.requires_context or self.collection in ["PDF Collection", "Repository Collection"]:
-            if self.collection == "PDF Collection" or (not self.collection and analysis.query_type == "pdf_documents"):
-                pdf_context = self.vector_store.query_pdf_collection(query)
-                initial_context.extend(pdf_context)
-            
-            if self.collection == "Repository Collection" or (not self.collection and analysis.query_type == "repository_documents"):
-                repo_context = self.vector_store.query_repo_collection(query)
-                initial_context.extend(repo_context)
-            
-            # If no specific collection type is identified but context is required, query both
-            if not self.collection and analysis.requires_context and analysis.query_type not in ["pdf_documents", "repository_documents", "general_knowledge"]:
-                if not initial_context:  # Only if we haven't already added context
-                    pdf_context = self.vector_store.query_pdf_collection(query)
-                    repo_context = self.vector_store.query_repo_collection(query)
-                    initial_context.extend(pdf_context)
-                    initial_context.extend(repo_context)
+        if self.collection == "PDF Collection":
+            pdf_context = self.vector_store.query_pdf_collection(query)
+            initial_context.extend(pdf_context)
+        elif self.collection == "Repository Collection":
+            repo_context = self.vector_store.query_repo_collection(query)
+            initial_context.extend(repo_context)
+        # For General Knowledge, no context is needed
         
         try:
             # Step 1: Planning
@@ -197,32 +120,17 @@ class RAGAgent:
             logger.info("Falling back to general response")
             return self._generate_general_response(query)
     
-    def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_standard(self, query: str) -> Dict[str, Any]:
         """Process query using standard approach without Chain of Thought"""
-        # If query type is unsupported and not in a specific collection, use general knowledge
-        if analysis.query_type == "unsupported" and not self.collection:
-            return self._generate_general_response(query)
-        
         # Initialize context variables
         pdf_context = []
         repo_context = []
         
-        # In standard interface (not CoT), always use the selected collection
-        # regardless of analysis.requires_context
+        # Get context based on selected collection
         if self.collection == "PDF Collection":
             pdf_context = self.vector_store.query_pdf_collection(query)
         elif self.collection == "Repository Collection":
             repo_context = self.vector_store.query_repo_collection(query)
-        # For CoT with no explicit collection, use analysis to determine
-        elif not self.collection and analysis.requires_context:
-            if analysis.query_type == "pdf_documents":
-                pdf_context = self.vector_store.query_pdf_collection(query)
-            elif analysis.query_type == "repository_documents":
-                repo_context = self.vector_store.query_repo_collection(query)
-            else:
-                # For other types, query both collections
-                pdf_context = self.vector_store.query_pdf_collection(query)
-                repo_context = self.vector_store.query_repo_collection(query)
         
         # Combine all context
         all_context = pdf_context + repo_context
@@ -234,33 +142,6 @@ class RAGAgent:
             response = self._generate_general_response(query)
         
         return response
-    
-    def _analyze_query(self, query: str) -> QueryAnalysis:
-        """Analyze the query to determine the best source of information"""
-        # If collection is explicitly set, override the analysis
-        if self.collection == "PDF Collection":
-            return QueryAnalysis(
-                query_type="pdf_documents",
-                reasoning="Using PDF collection as explicitly selected by user",
-                requires_context=True
-            )
-        elif self.collection == "Repository Collection":
-            return QueryAnalysis(
-                query_type="repository_documents",  # Changed from pdf_documents to repository_documents
-                reasoning="Using Repository collection as explicitly selected by user",
-                requires_context=True
-            )
-        elif self.collection == "General Knowledge":
-            return QueryAnalysis(
-                query_type="general_knowledge",
-                reasoning="Using General Knowledge as explicitly selected by user",
-                requires_context=False
-            )
-        
-        # If no collection is explicitly set, perform normal analysis
-        chain_input = {"query": query}
-        result = self.llm.invoke(self.query_analyzer["prompt"].format_messages(**chain_input))
-        return self.query_analyzer["parser"].parse(result.content)
     
     def _generate_response(self, query: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate a response using the retrieved context"""
