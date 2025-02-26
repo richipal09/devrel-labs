@@ -308,14 +308,19 @@ This endpoint processes a query through the agentic RAG pipeline and returns a r
 
 ## Annex: Architecture
 
+<img src="img/architecture.png" alt="Architecture" width="80%">
+
 The system consists of several key components:
 
-1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
-2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
-3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
+1. **PDF Processor**: we use `docling` to extract and chunk text from PDF documents
+2. **Web Processor**: we use `trafilatura` to extract and chunk text from websites
+3. **GitHub Repository Processor**: we use `gitingest` to extract and chunk text from repositories
+4. **Vector Store**: Manages document embeddings and similarity search using `ChromaDB`
+5. **RAG Agent**: Makes intelligent decisions about query routing and response generation
    - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an OpenAI API key
    - Local Agent: Uses `Mistral-7B` as an open-source alternative
-4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
+6. **FastAPI Server**: Provides REST API endpoints for document upload and querying
+7. **Gradio Interface**: Provides a user-friendly web interface for interacting with the RAG system
 
 The RAG Agent flow is the following:
 
