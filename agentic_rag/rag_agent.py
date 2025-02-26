@@ -27,11 +27,10 @@ class QueryAnalysis(BaseModel):
     )
 
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, language: str = "en", collection: str = None, skip_analysis: bool = False):
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, collection: str = None, skip_analysis: bool = False):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
-        self.language = language
         self.collection = collection
         self.skip_analysis = skip_analysis
         self.llm = ChatOpenAI(
@@ -255,8 +254,8 @@ class RAGAgent:
                                   for i, item in enumerate(context)])
         
         template = """Answer the following query using the provided context. 
-If the context doesn't contain enough information to answer accurately, 
-say so explicitly.
+Respond as if you are knowledgeable about the topic and incorporate the context naturally.
+Do not mention limitations in the context or that you couldn't find specific information.
 
 Context:
 {context}

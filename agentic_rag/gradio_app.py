@@ -77,12 +77,12 @@ def process_repo(repo_path: str) -> str:
     except Exception as e:
         return f"✗ Error processing repository: {str(e)}"
 
-def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str, collection: str) -> List[List[str]]:
+def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, collection: str) -> List[List[str]]:
     """Process chat message using selected agent and collection"""
     try:
         print("\n" + "="*50)
         print(f"New message received: {message}")
-        print(f"Agent: {agent_type}, CoT: {use_cot}, Language: {language}, Collection: {collection}")
+        print(f"Agent: {agent_type}, CoT: {use_cot}, Collection: {collection}")
         print("="*50 + "\n")
         
         # Determine if we should skip analysis based on collection and interface type
@@ -102,10 +102,6 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
             agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, collection=collection, skip_analysis=skip_analysis)
-        
-        # Convert language selection to language code
-        lang_code = "es" if language == "Spanish" else "en"
-        agent.language = lang_code
         
         # Process query and get response
         print("Processing query...")
@@ -206,19 +202,13 @@ def create_interface():
         
         with gr.Tab("Standard Chat Interface"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
                     standard_agent_dropdown = gr.Dropdown(
                         choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
                         value="Local (Mistral)",
                         label="Select Agent"
                     )
-                with gr.Column():
-                    standard_language_dropdown = gr.Dropdown(
-                        choices=["English", "Spanish"],
-                        value="English",
-                        label="Response Language"
-                    )
-                with gr.Column():
+                with gr.Column(scale=1):
                     standard_collection_dropdown = gr.Dropdown(
                         choices=["PDF Collection", "Repository Collection", "General Knowledge"],
                         value="PDF Collection",
@@ -239,19 +229,13 @@ def create_interface():
 
         with gr.Tab("Chain of Thought Chat Interface"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
                     cot_agent_dropdown = gr.Dropdown(
                         choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
                         value="Local (Mistral)",
                         label="Select Agent"
                     )
-                with gr.Column():
-                    cot_language_dropdown = gr.Dropdown(
-                        choices=["English", "Spanish"],
-                        value="English",
-                        label="Response Language"
-                    )
-                with gr.Column():
+                with gr.Column(scale=1):
                     cot_collection_dropdown = gr.Dropdown(
                         choices=["PDF Collection", "Repository Collection", "General Knowledge"],
                         value="PDF Collection",
@@ -284,7 +268,6 @@ def create_interface():
                 standard_chatbot,
                 standard_agent_dropdown,
                 gr.State(False),  # use_cot=False
-                standard_language_dropdown,
                 standard_collection_dropdown
             ],
             outputs=[standard_chatbot]
@@ -296,7 +279,6 @@ def create_interface():
                 standard_chatbot,
                 standard_agent_dropdown,
                 gr.State(False),  # use_cot=False
-                standard_language_dropdown,
                 standard_collection_dropdown
             ],
             outputs=[standard_chatbot]
@@ -311,7 +293,6 @@ def create_interface():
                 cot_chatbot,
                 cot_agent_dropdown,
                 gr.State(True),  # use_cot=True
-                cot_language_dropdown,
                 cot_collection_dropdown
             ],
             outputs=[cot_chatbot]
@@ -323,7 +304,6 @@ def create_interface():
                 cot_chatbot,
                 cot_agent_dropdown,
                 gr.State(True),  # use_cot=True
-                cot_language_dropdown,
                 cot_collection_dropdown
             ],
             outputs=[cot_chatbot]
@@ -343,7 +323,6 @@ def create_interface():
         2. **Standard Chat Interface**:
            - Quick responses without detailed reasoning steps
            - Select your preferred agent (Local Mistral or OpenAI)
-           - Choose your preferred response language
            - Select which knowledge collection to query:
              - **PDF Collection**: Always searches PDF documents
              - **Repository Collection**: Always searches code repositories
