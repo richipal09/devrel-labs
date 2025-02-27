@@ -4,6 +4,8 @@
 
 An intelligent RAG (Retrieval Augmented Generation) system that uses an LLM agent to make decisions about information retrieval and response generation. The system processes PDF documents and can intelligently decide which knowledge base to query based on the user's question.
 
+<img src="img/architecture.png" alt="CoT output" width="80%">
+
 The system has the following features:
 
 - Intelligent query routing
@@ -20,6 +22,9 @@ The system has the following features:
 
 <img src="img/gradio_3.png" alt="Gradio Interface" width="80%">
 
+Here you can find a result of using Chain of Thought (CoT) reasoning:
+
+<img src="img/cot_final_answer.png" alt="CoT output" width="80%">
 
 ## 0. Prerequisites and setup
 
