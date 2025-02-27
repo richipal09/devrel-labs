@@ -19,7 +19,56 @@ from pydub import AudioSegment
 import tempfile
 import tqdm
 
-def _init_bark(self) -> None:
+class TTSGenerator:
+    """Class for generating podcast audio from transcripts."""
+    
+    def __init__(self, model_type: str = "bark", config_file: str = 'config.yaml') -> None:
+        """Initialize the TTS generator.
+        
+        Args:
+            model_type: Type of TTS model to use ('bark', 'parler', or 'coqui')
+            config_file: Path to configuration file
+            
+        Raises:
+            ValueError: If model_type is not supported
+        """
+        self.model_type = model_type.lower()
+        
+        if self.model_type not in ["bark", "parler", "coqui"]:
+            raise ValueError("Unsupported TTS model type. Choose 'bark', 'parler', or 'coqui'")
+        
+        # Check for FFmpeg dependencies
+        self.ffmpeg_available = self._check_ffmpeg()
+        if not self.ffmpeg_available:
+            print("WARNING: FFmpeg/ffprobe not found. Audio export may fail.")
+            print("Please install FFmpeg: https://ffmpeg.org/download.html")
+        
+        # Load configuration
+        with open(config_file, 'r', encoding='utf-8') as file:
+            self.config = yaml.safe_load(file)
+        
+        # Initialize model-specific components
+        if self.model_type == "bark":
+            self._init_bark()
+        elif self.model_type == "parler":
+            self._init_parler()
+        else:  # coqui
+            self._init_coqui()
+        
+        # Initialize execution time tracking
+        self.execution_times = {
+            'start_time': 0,
+            'total_time': 0,
+            'segments': []
+        }
+    
+    def _check_ffmpeg(self) -> bool:
+        """Check if FFmpeg and ffprobe are available."""
+        ffmpeg = shutil.which("ffmpeg")
+        ffprobe = shutil.which("ffprobe")
+        return ffmpeg is not None and ffprobe is not None
+    
+    def _init_bark(self) -> None:
         """Initialize the Bark TTS model."""
         print("Initializing Bark TTS model...")
         from transformers import AutoProcessor, BarkModel
@@ -44,8 +93,36 @@ def _init_bark(self) -> None:
             "Speaker 2": "v2/en_speaker_9",  # Female student
             "Speaker 3": "v2/en_speaker_3"   # Second expert
         }
+    
+    def _init_parler(self) -> None:
+        """Initialize the Parler TTS model."""
+        print("Initializing Parler TTS model...")
+        try:
+            # Try both import paths for compatibility
+            try:
+                from parler_tts import ParlerTTS
+            except ImportError:
+                from parler.tts import ParlerTTS
+            
+            # Initialize Parler TTS
+            self.model = ParlerTTS()
+            
+            # Define speaker presets (speaker IDs for Parler)
+            self.speakers = {
+                "Speaker 1": 0,  # Male expert
+                "Speaker 2": 1,  # Female student
+                "Speaker 3": 2   # Second expert
+            }
+            self.parler_available = True
+        except ImportError:
+            print("WARNING: Parler TTS module not found. Using fallback TTS instead.")
+            print("To install Parler TTS, run: pip install git+https://github.com/huggingface/parler-tts.git")
+            # Fall back to Bark if Parler is not available
+            self.model_type = "bark"
+            self._init_bark()
+            self.parler_available = False
 
-def _init_coqui(self) -> None:
+    def _init_coqui(self) -> None:
         """Initialize the Coqui TTS model."""
         print("Initializing Coqui TTS model...")
         try:
@@ -80,7 +157,7 @@ def _init_coqui(self) -> None:
             self._init_bark()
             self.coqui_available = False
 
-def _generate_audio_bark(self, text: str, speaker: str) -> AudioSegment:
+    def _generate_audio_bark(self, text: str, speaker: str) -> AudioSegment:
         """Generate audio using Bark TTS.
         
         Args:
@@ -108,14 +185,18 @@ def _generate_audio_bark(self, text: str, speaker: str) -> AudioSegment:
                 inputs = {k: v.to("cuda") for k, v in inputs.items()}
             
             # Generate audio with specific generation parameters
-            # Use only max_new_tokens, not max_length to avoid the warning
-            speech_output = self.model.generate(
-                **inputs,
-                pad_token_id=self.model.config.pad_token_id,
-                do_sample=True,
-                temperature=0.7,
-                max_new_tokens=250  # Use max_new_tokens instead of max_length
-            )
+            # Make sure we're not passing max_new_tokens in both inputs and as a separate parameter
+            generation_kwargs = {
+                "pad_token_id": self.model.config.pad_token_id,
+                "do_sample": True,
+                "temperature": 0.7,
+            }
+            
+            # Only add max_new_tokens if not already in inputs
+            if "max_new_tokens" not in inputs:
+                generation_kwargs["max_new_tokens"] = 250
+            
+            speech_output = self.model.generate(**inputs, **generation_kwargs)
             
             # Convert to audio segment
             audio_array = speech_output.cpu().numpy().squeeze()
@@ -152,7 +233,7 @@ def _generate_audio_bark(self, text: str, speaker: str) -> AudioSegment:
             # Return a silent segment as fallback
             return AudioSegment.silent(duration=1000)
 
-def _generate_audio_coqui(self, text: str, speaker: str) -> AudioSegment:
+    def _generate_audio_coqui(self, text: str, speaker: str) -> AudioSegment:
         """Generate audio using Coqui TTS.
         
         Args:
