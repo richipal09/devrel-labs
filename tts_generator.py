@@ -185,18 +185,22 @@ class TTSGenerator:
                 inputs = {k: v.to("cuda") for k, v in inputs.items()}
             
             # Generate audio with specific generation parameters
-            # Make sure we're not passing max_new_tokens in both inputs and as a separate parameter
             generation_kwargs = {
                 "pad_token_id": self.model.config.pad_token_id,
                 "do_sample": True,
                 "temperature": 0.7,
+                "max_new_tokens": 250
             }
             
-            # Only add max_new_tokens if not already in inputs
-            if "max_new_tokens" not in inputs:
-                generation_kwargs["max_new_tokens"] = 250
+            # Make a clean copy of inputs without any generation parameters
+            # to avoid conflicts with generation_kwargs
+            model_inputs = {}
+            for k, v in inputs.items():
+                if k not in ["max_new_tokens", "do_sample", "temperature", "pad_token_id"]:
+                    model_inputs[k] = v
             
-            speech_output = self.model.generate(**inputs, **generation_kwargs)
+            # Generate the audio
+            speech_output = self.model.generate(**model_inputs, **generation_kwargs)
             
             # Convert to audio segment
             audio_array = speech_output.cpu().numpy().squeeze()
