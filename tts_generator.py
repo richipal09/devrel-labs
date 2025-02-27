@@ -2,6 +2,13 @@ import warnings
 # Suppress all warnings
 warnings.filterwarnings('ignore')
 
+# Specifically suppress the attention mask warnings
+warnings.filterwarnings('ignore', message='.*The attention mask.*')
+warnings.filterwarnings('ignore', message='.*The pad token id is not set.*')
+warnings.filterwarnings('ignore', message='.*You have modified the pretrained model configuration.*')
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
+
 import os
 import torch
 # Suppress Flash Attention 2 warning
@@ -9,6 +16,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 # Suppress HF text generation warnings
 os.environ["HF_SUPPRESS_GENERATION_WARNINGS"] = "true"
+# Additional environment variables to suppress warnings
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 import time
 import yaml
@@ -18,6 +28,11 @@ from typing import Dict, List, Optional, Union, Tuple
 from pydub import AudioSegment
 import tempfile
 import tqdm
+
+# Disable logging from transformers
+import logging
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("transformers.generation_utils").setLevel(logging.ERROR)
 
 class TTSGenerator:
     """Class for generating podcast audio from transcripts."""
