@@ -1,0 +1,395 @@
+1
+00:00:01,056 --> 00:00:04,751
+So we all know what retrieval augmented generation is,
+
+2
+00:00:04,944 --> 00:00:07,968
+but let's just do a quick refresher retrieval augment.
+
+3
+00:00:07,968 --> 00:00:14,016
+The generation is a powerful and popular pipeline that enhances responses from a large language model.
+
+4
+00:00:14,256 --> 00:00:18,431
+It does this by incorporating relevant data retrieved from a vector database,
+
+5
+00:00:18,527 --> 00:00:22,367
+adding it as context to the prompt and sending it to the llm for generation.
+
+6
+00:00:22,800 --> 00:00:28,128
+What this does is it allows the llm to ground its response and concrete and accurate information,
+
+7
+00:00:28,175 --> 00:00:31,583
+and that improves the quality and reliability of the response.
+
+8
+00:00:31,824 --> 00:00:33,024
+Let me quickly sketch it out.
+
+9
+00:00:34,415 --> 00:00:34,991
+So let's say,
+
+10
+00:00:34,991 --> 00:00:38,640
+we have a user or an application even,
+
+11
+00:00:41,423 --> 00:00:42,479
+and they send a query.
+
+12
+00:00:44,735 --> 00:00:44,927
+Now,
+
+13
+00:00:44,927 --> 00:00:46,512
+without retrieval argument,
+
+14
+00:00:46,512 --> 00:00:47,231
+the generation,
+
+15
+00:00:47,280 --> 00:00:52,079
+this query is going to go and get itself intercalated into a prompt,
+
+16
+00:00:55,392 --> 00:01:03,984
+and from there that's going to hit the and that's going to generate an output.
+
+17
+00:01:08,063 --> 00:01:09,263
+To make this rag,
+
+18
+00:01:09,311 --> 00:01:11,712
+we can add a vector database.
+
+19
+00:01:12,623 --> 00:01:12,864
+So,
+
+20
+00:01:12,864 --> 00:01:14,111
+instead of just going directly,
+
+21
+00:01:14,111 --> 00:01:15,743
+getting itself interpolated into the prompt,
+
+22
+00:01:15,743 --> 00:01:17,471
+it's going to hit this vector DV,
+
+23
+00:01:17,808 --> 00:01:22,128
+and the response from that vector DB is going to be used as context for the prompt.
+
+24
+00:01:23,280 --> 00:01:23,567
+Now,
+
+25
+00:01:23,567 --> 00:01:25,391
+in this typical rag pipeline,
+
+26
+00:01:25,391 --> 00:01:27,408
+we call the llm only once,
+
+27
+00:01:27,456 --> 00:01:30,287
+and we use it solely to generate a response.
+
+28
+00:01:30,959 --> 00:01:34,944
+But what if we could leverage the llm not just for responses,
+
+29
+00:01:34,992 --> 00:01:39,552
+but also for additional tasks like deciding which vector database to query?
+
+30
+00:01:39,552 --> 00:01:43,487
+If we have multiple databases or even determining the type of response to give?
+
+31
+00:01:43,920 --> 00:01:44,640
+Should it answer?
+
+32
+00:01:44,640 --> 00:01:45,504
+With tax,
+
+33
+00:01:45,504 --> 00:01:47,903
+generate a chart or even provide a code snippet,
+
+34
+00:01:48,048 --> 00:01:51,215
+and that would all be dependent on the context of that query.
+
+35
+00:01:52,319 --> 00:01:58,896
+So this is where the agentic rag pipeline comes into play.
+
+36
+00:01:59,135 --> 00:02:00,191
+Energetic rag.
+
+37
+00:02:00,191 --> 00:02:02,591
+We use the as an agent,
+
+38
+00:02:02,688 --> 00:02:05,519
+and the llm goes beyond just generating response.
+
+39
+00:02:05,615 --> 00:02:12,912
+It takes on an active role and can make decisions that will improve both the relevance and accuracy of the retrieved data.
+
+40
+00:02:13,391 --> 00:02:19,536
+Now let's explore how we can augment the initial process with an agent and a couple of different sources of data.
+
+41
+00:02:20,448 --> 00:02:22,512
+So instead of just one single source,
+
+42
+00:02:22,608 --> 00:02:23,520
+let's add a 2nd,
+
+43
+00:02:25,872 --> 00:02:27,168
+and the 1st one could be,
+
+44
+00:02:27,264 --> 00:02:27,792
+you know,
+
+45
+00:02:28,895 --> 00:02:30,864
+internal documentation,
+
+46
+00:02:30,864 --> 00:02:31,151
+right,
+
+47
+00:02:31,824 --> 00:02:35,087
+and the 2nd one can be general industry knowledge.
+
+48
+00:02:40,080 --> 00:02:40,271
+Now,
+
+49
+00:02:40,271 --> 00:02:41,711
+in the internal documentation,
+
+50
+00:02:41,711 --> 00:02:43,391
+we're going to have things like policies,
+
+51
+00:02:43,391 --> 00:02:44,544
+procedures and guidelines.
+
+52
+00:02:44,544 --> 00:02:48,288
+I mean the general knowledge base will have things like industry standards,
+
+53
+00:02:48,336 --> 00:02:50,592
+best practices and public resources.
+
+54
+00:02:51,551 --> 00:02:57,599
+So how can we get the llm to use the vector database that contains the data that will be most relevant to the query?
+
+55
+00:02:58,223 --> 00:03:00,048
+Let's add that Asian into this pipeline.
+
+56
+00:03:05,328 --> 00:03:05,903
+Now,
+
+57
+00:03:05,951 --> 00:03:10,704
+this agent can intelligently decide which database to query based on the user's question,
+
+58
+00:03:11,087 --> 00:03:13,008
+and the agent isn't making a random guess.
+
+59
+00:03:13,008 --> 00:03:20,448
+It's leveraging the lms language understanding capabilities to interpret the query and determine its context.
+
+60
+00:03:21,264 --> 00:03:25,824
+So if an employee asks what's the company's policy on remote work during the holidays,
+
+61
+00:03:25,872 --> 00:03:28,175
+it would rout that to the internal documentation,
+
+62
+00:03:28,319 --> 00:03:31,439
+and that response will be used as context for the prompt.
+
+63
+00:03:31,776 --> 00:03:33,216
+But if the question is more general,
+
+64
+00:03:33,216 --> 00:03:33,551
+like,
+
+65
+00:03:33,888 --> 00:03:37,728
+what are the industry standards for remote work and tech companies?
+
+66
+00:03:38,592 --> 00:03:44,015
+The agents going to wrap that to the general knowledge database and that context is going to be used within that prompt?
+
+67
+00:03:44,496 --> 00:03:47,087
+Powered by an llm and properly trained,
+
+68
+00:03:47,087 --> 00:03:51,312
+the agent analyzes the query and based on the understanding of the content,
+
+69
+00:03:51,312 --> 00:03:52,223
+and the context,
+
+70
+00:03:52,223 --> 00:03:54,000
+decides which database to use.
+
+71
+00:03:54,479 --> 00:03:59,711
+But they're not always going to ask questions that are generally or genuinely relevant to any of these.
+
+72
+00:03:59,711 --> 00:04:01,487
+Any of the stuff that we have in our vector DV.
+
+73
+00:04:01,487 --> 00:04:05,424
+So if someone asks a question that is just totally out of left field,
+
+74
+00:04:05,663 --> 00:04:08,256
+like who won the World Series in 2015?
+
+75
+00:04:08,975 --> 00:04:13,487
+What the agent can do at that point is it could rout it to a fail-safe.
+
+76
+00:04:15,647 --> 00:04:21,264
+So because the agent is able to recognize the context of the query,
+
+77
+00:04:21,839 --> 00:04:28,367
+it could recognize that it's not a part of the 2 databases that we have can route it to the failsafe and return back.
+
+78
+00:04:29,423 --> 00:04:29,951
+Sorry,
+
+79
+00:04:30,767 --> 00:04:32,591
+I don't have the information you're looking for.
+
+80
+00:04:32,831 --> 00:04:37,151
+This agentic Greg pipeline can be used in customer support systems and legal tech.
+
+81
+00:04:37,776 --> 00:04:38,495
+For example,
+
+82
+00:04:38,495 --> 00:04:40,848
+a lawyer can source answers to their questions from,
+
+83
+00:04:40,848 --> 00:04:42,288
+like their internal briefs,
+
+84
+00:04:42,672 --> 00:04:43,920
+and then in another query,
+
+85
+00:04:43,920 --> 00:04:46,319
+just get stuff from public case law databases.
+
+86
+00:04:46,704 --> 00:04:48,959
+The agent can be utilized in a tunnel ways.
+
+87
+00:04:49,487 --> 00:04:53,184
+Argentic rag is an evolution in how we enhance the rag pipeline.
+
+88
+00:04:53,184 --> 00:04:57,935
+By moving beyond simple response generation to more intelligent decision making.
+
+89
+00:04:58,512 --> 00:05:04,223
+By allowing an agent to choose the best data sources and potentially even incorporate external information,
+
+90
+00:05:04,512 --> 00:05:07,343
+like real-time data or 3rd party services,
+
+91
+00:05:07,632 --> 00:05:10,752
+we can create a pipeline that's more responsive,
+
+92
+00:05:10,800 --> 00:05:12,863
+more accurate and more adaptable.
+
+93
+00:05:13,391 --> 00:05:17,663
+This approach opens up so many possibilities for applications and customer service,
+
+94
+00:05:17,663 --> 00:05:18,048
+legal,
+
+95
+00:05:18,048 --> 00:05:18,384
+tech,
+
+96
+00:05:18,384 --> 00:05:19,103
+healthcare,
+
+97
+00:05:19,632 --> 00:05:20,735
+virtually any field.
+
+98
+00:05:21,264 --> 00:05:23,471
+As the technology continues to evolve,
+
+99
+00:05:23,471 --> 00:05:29,375
+we will see ai systems that truly understand context and can deliver amazing values to the end user.
