@@ -2,6 +2,8 @@
 
 ## Introduction
 
+<img src="./images/airag_in_a_box.png" alt="Podman commands" width="80%">
+
 An innovative RAG (Retrieval Augmented Generation) system designed to leverage an LLM agent for effective information retrieval and response generation.
 
 This system efficiently processes various document formats and intelligently selects the appropriate knowledge base based on user queries.
@@ -14,7 +16,7 @@ This solution includes 2 containers:
 - Oracle Database 23ai
 - AIRAG Container
 
-<img src="./images/airag_in_a_box.png" alt="Podman commands" width="80%">
+<img src="./images/streamlit_interface.png" alt="Podman commands" width="80%">
 
 ## 1. Install the containers
 
