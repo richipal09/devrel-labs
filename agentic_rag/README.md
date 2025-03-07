@@ -14,7 +14,7 @@ The system has the following features:
 - Smart context retrieval and response generation
 - FastAPI-based REST API for document upload and querying
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
-- Support for quantized models (4-bit/8-bit) and GGUF models for faster inference
+- Support for quantized models (4-bit/8-bit) and Ollama models for faster inference
 - Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
 
 <img src="img/gradio_1.png" alt="Gradio Interface" width="80%">
@@ -43,7 +43,7 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
   - GPU with 8GB VRAM recommended for better performance
   - Will run on CPU if GPU is not available, but will be significantly slower.
   - For quantized models (4-bit/8-bit): Reduced VRAM requirements (4-6GB) with minimal performance impact
-  - For GGUF models: Further reduced memory requirements, with models automatically optimizing GPU usage based on available VRAM
+  - For Ollama models: Requires Ollama to be installed and running, with significantly reduced memory requirements
 
 ### Setup
 
@@ -55,7 +55,7 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
     pip install -r requirements.txt
     ```
 
-2. Authenticate with HuggingFace:
+2. Authenticate with HuggingFace (for Hugging Face models only):
    
    The system uses `Mistral-7B` by default, which requires authentication with HuggingFace:
 
@@ -78,14 +78,29 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
 
    If no API key is provided, the system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
-2. For quantized models and GGUF support, ensure these packages are installed:
+4. For quantized models, ensure bitsandbytes is installed:
 
     ```bash
-    sudo apt install build-essential
-    pip install bitsandbytes>=0.41.0 llama-cpp-python>=0.2.38 huggingface_hub
+    pip install bitsandbytes>=0.41.0
     ```
 
-3. To run `llama-cpp` models on Windows, you will need to install Visual C++ Build Tools, and install the C++ development-related components throughout the installation procedure. Choosing the "C++ build tools" and any necessary libraries or packages is usually part of this.
+5. For Ollama models, install Ollama:
+
+    a. Download and install Ollama from [ollama.com/download](https://ollama.com/download) for Windows, or run the following command in Linux:
+
+      ```bash
+      curl -fsSL https://ollama.com/install.sh | sh
+      ```
+    
+    b. Start the Ollama service
+    
+    c. Pull the models you want to use beforehand:
+    
+    ```bash
+    ollama pull llama3
+    ollama pull phi3
+    ollama pull qwen2
+    ```
 
 ## 1. Getting Started
 
@@ -129,16 +144,17 @@ This will start the Gradio server and automatically open the interface in your d
 
 3. **Chat Interface**:
    - Select between different model options:
-     - Local (Mistral) - Default Mistral-7B model
+     - Local (Mistral) - Default Mistral-7B model (recommended)
      - Local (Mistral) with 4-bit or 8-bit quantization for faster inference
-     - GGUF models (Phi-4-mini, Qwen_QwQ-32B, TinyR1-32B) for optimized performance
+     - Ollama models (llama3, phi-3, qwen2) as alternative options
      - OpenAI (if API key is configured)
    - Toggle Chain of Thought reasoning for more detailed responses
    - Chat with your documents using natural language
    - Clear chat history as needed
 
 Note: The interface will automatically detect available models based on your configuration:
-- Local Mistral model requires HuggingFace token in `config.yaml`
+- Local Mistral model requires HuggingFace token in `config.yaml` (default option)
+- Ollama models require Ollama to be installed and running (alternative options)
 - OpenAI model requires API key in `.env` file
 
 ### 3. Using Individual Python Components via Command Line

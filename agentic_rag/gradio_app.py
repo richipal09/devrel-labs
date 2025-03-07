@@ -101,32 +101,46 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
         elif "8-bit" in agent_type:
             quantization = "8bit"
             model_type = "Local (Mistral)"
-        elif "GGUF" in agent_type:
-            model_type = "GGUF"
+        elif "Ollama" in agent_type:
+            model_type = "Ollama"
             # Extract model name from agent_type
-            if "Phi-4-mini" in agent_type:
-                model_name = "unsloth/Phi-4-mini-instruct-GGUF"
-            elif "Qwen_QwQ-32B" in agent_type:
-                model_name = "bartowski/Qwen_QwQ-32B-GGUF"
-            elif "TinyR1-32B" in agent_type:
-                model_name = "bartowski/qihoo360_TinyR1-32B-Preview-GGUF"
+            if "llama3" in agent_type.lower():
+                model_name = "ollama:llama3"
+            elif "phi-3" in agent_type.lower():
+                model_name = "ollama:phi3"
+            elif "qwen2" in agent_type.lower():
+                model_name = "ollama:qwen2"
         else:
             model_type = agent_type
         
         # Select appropriate agent and reinitialize with correct settings
-        if "Local" in model_type or model_type == "GGUF":
+        if "Local" in model_type:
+            # For HF models, we need the token
             if not hf_token:
                 response_text = "Local agent not available. Please check your HuggingFace token configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            
-            # Use specified model_name for GGUF models, otherwise use default
-            if model_type == "GGUF" and model_name:
-                agent = LocalRAGAgent(vector_store, model_name=model_name, use_cot=use_cot, 
-                                     collection=collection, skip_analysis=skip_analysis)
+            agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
+                                 skip_analysis=skip_analysis, quantization=quantization)
+        elif model_type == "Ollama":
+            # For Ollama models
+            if model_name:
+                try:
+                    agent = LocalRAGAgent(vector_store, model_name=model_name, use_cot=use_cot, 
+                                         collection=collection, skip_analysis=skip_analysis)
+                except Exception as e:
+                    response_text = f"Error initializing Ollama model: {str(e)}. Falling back to Local Mistral."
+                    print(f"Error: {response_text}")
+                    # Fall back to Mistral if Ollama fails
+                    if hf_token:
+                        agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
+                                             skip_analysis=skip_analysis)
+                    else:
+                        return history + [[message, "Local Mistral agent not available for fallback. Please check your HuggingFace token configuration."]]
             else:
-                agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
-                                     skip_analysis=skip_analysis, quantization=quantization)
+                response_text = "Ollama model not specified correctly."
+                print(f"Error: {response_text}")
+                return history + [[message, response_text]]
         else:
             if not openai_key:
                 response_text = "OpenAI agent not available. Please check your OpenAI API key configuration."
@@ -217,15 +231,19 @@ def create_interface():
         
         # Create model choices list for reuse
         model_choices = []
+        # HF models first if token is available
         if hf_token:
             model_choices.extend([
                 "Local (Mistral)", 
                 "Local (Mistral) - 4-bit Quantized",
                 "Local (Mistral) - 8-bit Quantized",
-                "GGUF - Phi-4-mini-instruct",
-                "GGUF - Qwen_QwQ-32B",
-                "GGUF - TinyR1-32B-Preview"
             ])
+        # Then Ollama models (don't require HF token)
+        model_choices.extend([
+            "Ollama - llama3",
+            "Ollama - phi-3",
+            "Ollama - qwen2"
+        ])
         if openai_key:
             model_choices.append("OpenAI")
         
@@ -235,10 +253,16 @@ def create_interface():
             ## Model Management
             
             Download models in advance to prepare them for use in the chat interface.
-            This can help avoid delays when first using a model and ensure all models are properly downloaded.
             
-            > **Note**: Some models may require accepting terms on the Hugging Face website before downloading.
-            > If you encounter a 401 error, please follow the link provided to accept the model terms.
+            ### Hugging Face Models (Default)
+            
+            The system uses Mistral-7B by default. For Hugging Face models (Mistral), you'll need a Hugging Face token in your config.yaml file.
+            
+            ### Ollama Models (Alternative)
+            
+            Ollama models are available as alternatives. For Ollama models, this will pull the model using the Ollama client. 
+            Make sure Ollama is installed and running on your system.
+            You can download Ollama from [ollama.com/download](https://ollama.com/download)
             """)
             
             with gr.Row():
@@ -275,20 +299,20 @@ def create_interface():
                     - VRAM Required: ~6GB
                     - Balance between quality and memory usage
                     
-                    **GGUF - Phi-4-mini-instruct**: Microsoft's Phi-4-mini model in GGUF format.
-                    - Size: ~2-4GB
-                    - VRAM Required: Scales based on available VRAM
+                    **Ollama - llama3**: Meta's Llama 3 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
+                    - Excellent performance and quality
+                    
+                    **Ollama - phi-3**: Microsoft's Phi-3 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
                     - Efficient small model with good performance
                     
-                    **GGUF - Qwen_QwQ-32B**: Qwen 32B model in GGUF format.
-                    - Size: ~20GB
-                    - VRAM Required: Scales based on available VRAM
-                    - High-quality large model
-                    
-                    **GGUF - TinyR1-32B-Preview**: Qihoo 360's TinyR1 32B model in GGUF format.
-                    - Size: ~20GB
-                    - VRAM Required: Scales based on available VRAM
-                    - High-quality large model
+                    **Ollama - qwen2**: Alibaba's Qwen2 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
+                    - High-quality model with good performance
                     """)
         
         # Document Processing Tab
@@ -480,64 +504,22 @@ def download_model(model_type: str) -> str:
         
         # Parse model type to determine model and quantization
         quantization = None
-        model_name = "mistralai/Mistral-7B-Instruct-v0.2"  # Default model
+        model_name = None
         
-        if "4-bit" in model_type:
-            quantization = "4bit"
-        elif "8-bit" in model_type:
-            quantization = "8bit"
-        elif "GGUF" in model_type:
-            # Extract model name from model_type
-            if "Phi-4-mini" in model_type:
-                model_name = "unsloth/Phi-4-mini-instruct-GGUF"
-            elif "Qwen_QwQ-32B" in model_type:
-                model_name = "bartowski/Qwen_QwQ-32B-GGUF"
-            elif "TinyR1-32B" in model_type:
-                model_name = "bartowski/qihoo360_TinyR1-32B-Preview-GGUF"
-        
-        # Check if HuggingFace token is available
-        if not hf_token:
-            return "❌ Error: HuggingFace token not found in config.yaml. Please add your token first."
-        
-        # Start download timer
-        start_time = time.time()
-        
-        # For GGUF models, use the GGUFModelHandler to download
-        if "GGUF" in model_type:
-            try:
-                from local_rag_agent import GGUFModelHandler
-                from huggingface_hub import list_repo_files
-                
-                # Extract repo_id
-                parts = model_name.split('/')
-                repo_id = '/'.join(parts[:2])
-                
-                # Check if model is gated
-                try:
-                    files = list_repo_files(repo_id, token=hf_token)
-                    gguf_files = [f for f in files if f.endswith('.gguf')]
-                    
-                    if not gguf_files:
-                        return f"❌ Error: No GGUF files found in repo: {repo_id}"
-                    
-                    # Download the model
-                    handler = GGUFModelHandler(model_name)
-                    
-                    # Calculate download time
-                    download_time = time.time() - start_time
-                    return f"✅ Successfully downloaded {model_type} in {download_time:.1f} seconds."
-                    
-                except Exception as e:
-                    if "401" in str(e):
-                        return f"❌ Error: This model is gated. Please accept the terms on the Hugging Face website: https://huggingface.co/{repo_id}"
-                    else:
-                        return f"❌ Error downloading model: {str(e)}"
+        if "4-bit" in model_type or "8-bit" in model_type:
+            # For HF models, we need the token
+            if not hf_token:
+                return "❌ Error: HuggingFace token not found in config.yaml. Please add your token first."
             
-            except ImportError:
-                return "❌ Error: llama-cpp-python not installed. Please install with: pip install llama-cpp-python"
-        
-        # For Transformers models, use the Transformers library
-        else:
+            model_name = "mistralai/Mistral-7B-Instruct-v0.2"  # Default model
+            if "4-bit" in model_type:
+                quantization = "4bit"
+            elif "8-bit" in model_type:
+                quantization = "8bit"
+                
+            # Start download timer
+            start_time = time.time()
+            
             try:
                 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
                 
@@ -587,6 +569,54 @@ def download_model(model_type: str) -> str:
                 
             except Exception as e:
                 return f"❌ Error downloading model: {str(e)}"
+                
+        elif "Ollama" in model_type:
+            # Extract model name from model_type
+            if "llama3" in model_type.lower():
+                model_name = "llama3"
+            elif "phi-3" in model_type.lower():
+                model_name = "phi3"
+            elif "qwen2" in model_type.lower():
+                model_name = "qwen2"
+            else:
+                return "❌ Error: Unknown Ollama model type"
+            
+            # Use Ollama to pull the model
+            try:
+                import ollama
+                
+                print(f"Pulling Ollama model: {model_name}")
+                start_time = time.time()
+                
+                # Pull the model with progress tracking
+                progress_text = ""
+                for progress in ollama.pull(model_name, stream=True):
+                    status = progress.get('status')
+                    if status:
+                        progress_text = f"Status: {status}"
+                        print(progress_text)
+                    
+                    # Show download progress
+                    if 'completed' in progress and 'total' in progress:
+                        completed = progress['completed']
+                        total = progress['total']
+                        if total > 0:
+                            percent = (completed / total) * 100
+                            progress_text = f"Downloading: {percent:.1f}% ({completed}/{total})"
+                            print(progress_text)
+                
+                # Calculate download time
+                download_time = time.time() - start_time
+                return f"✅ Successfully pulled Ollama model {model_name} in {download_time:.1f} seconds."
+                
+            except ImportError:
+                return "❌ Error: ollama not installed. Please install with: pip install ollama"
+            except ConnectionError:
+                return "❌ Error: Could not connect to Ollama. Please make sure Ollama is installed and running."
+            except Exception as e:
+                return f"❌ Error pulling Ollama model: {str(e)}"
+        else:
+            return "❌ Error: Unknown model type"
     
     except Exception as e:
         return f"❌ Error: {str(e)}"
