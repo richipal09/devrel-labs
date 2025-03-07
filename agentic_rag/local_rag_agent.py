@@ -8,6 +8,8 @@ import yaml
 import os
 import logging
 import time
+import json
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -41,60 +43,246 @@ class LocalLLM:
         
         return Response(result.strip())
 
+class GGUFModelHandler:
+    """Handler for GGUF models using llama-cpp-python"""
+    def __init__(self, model_path_or_repo_id: str):
+        """Initialize GGUF model handler
+        
+        Args:
+            model_path_or_repo_id: Local path to GGUF model or HuggingFace repo ID
+        """
+        self.model_path_or_repo_id = model_path_or_repo_id
+        self.model = None
+        self._load_model()
+    
+    def _load_model(self):
+        """Load GGUF model using llama-cpp-python"""
+        try:
+            from llama_cpp import Llama
+            
+            # Check if model_path is a local file or HuggingFace repo ID
+            if os.path.exists(self.model_path_or_repo_id):
+                model_path = self.model_path_or_repo_id
+            else:
+                # Download from HuggingFace
+                from huggingface_hub import hf_hub_download
+                
+                # Try to load HuggingFace token from config
+                try:
+                    with open('config.yaml', 'r') as f:
+                        config = yaml.safe_load(f)
+                    token = config.get('HUGGING_FACE_HUB_TOKEN')
+                except Exception:
+                    token = None
+                
+                # Extract repo_id and filename
+                parts = self.model_path_or_repo_id.split('/')
+                if len(parts) < 2:
+                    raise ValueError(f"Invalid HuggingFace repo ID: {self.model_path_or_repo_id}")
+                
+                repo_id = '/'.join(parts[:2])
+                
+                # Find the GGUF file in the repo
+                from huggingface_hub import list_repo_files
+                files = list_repo_files(repo_id, token=token)
+                gguf_files = [f for f in files if f.endswith('.gguf')]
+                
+                if not gguf_files:
+                    raise ValueError(f"No GGUF files found in repo: {repo_id}")
+                
+                # Use the first GGUF file or try to find a specific one if specified
+                if len(parts) > 2:
+                    # Try to find a specific file if specified in the path
+                    specified_file = '/'.join(parts[2:])
+                    matching_files = [f for f in gguf_files if specified_file in f]
+                    if matching_files:
+                        filename = matching_files[0]
+                    else:
+                        filename = gguf_files[0]
+                else:
+                    filename = gguf_files[0]
+                
+                print(f"Downloading GGUF model: {filename} from {repo_id}")
+                model_path = hf_hub_download(
+                    repo_id=repo_id,
+                    filename=filename,
+                    token=token
+                )
+            
+            # Determine optimal n_gpu_layers based on available VRAM
+            n_gpu_layers = 0
+            if torch.cuda.is_available():
+                # Get available VRAM in GB
+                vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                
+                # Simple heuristic for n_gpu_layers based on VRAM
+                if vram_gb > 24:
+                    n_gpu_layers = -1  # Use all layers
+                elif vram_gb > 16:
+                    n_gpu_layers = 32
+                elif vram_gb > 8:
+                    n_gpu_layers = 24
+                elif vram_gb > 4:
+                    n_gpu_layers = 16
+                else:
+                    n_gpu_layers = 8
+                
+                print(f"CUDA available with {vram_gb:.1f}GB VRAM. Using {n_gpu_layers} GPU layers.")
+            else:
+                print("CUDA not available. Using CPU only.")
+            
+            # Load the model
+            self.model = Llama(
+                model_path=model_path,
+                n_ctx=4096,  # Context window size
+                n_gpu_layers=n_gpu_layers,
+                verbose=False
+            )
+            
+            print(f"✓ GGUF model loaded successfully: {os.path.basename(model_path)}")
+            
+        except ImportError as e:
+            raise ImportError(f"Failed to import llama_cpp. Please install with: pip install llama-cpp-python. Error: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Failed to load GGUF model: {str(e)}")
+    
+    def __call__(self, prompt, max_new_tokens=512, temperature=0.1, top_p=0.95, **kwargs):
+        """Generate text using the GGUF model"""
+        if not self.model:
+            raise ValueError("Model not loaded")
+        
+        # Generate text
+        result = self.model(
+            prompt,
+            max_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            echo=False
+        )
+        
+        # Format result to match transformers pipeline output
+        formatted_result = [{
+            "generated_text": result["choices"][0]["text"]
+        }]
+        
+        return formatted_result
+
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, collection: str = None, skip_analysis: bool = False):
-        """Initialize local RAG agent with vector store and local LLM"""
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", 
+                 use_cot: bool = False, collection: str = None, skip_analysis: bool = False,
+                 quantization: str = None):
+        """Initialize local RAG agent with vector store and local LLM
+        
+        Args:
+            vector_store: Vector store for retrieving context
+            model_name: HuggingFace model name/path or GGUF model path/repo
+            use_cot: Whether to use Chain of Thought reasoning
+            collection: Collection to search in (PDF, Repository, or General Knowledge)
+            skip_analysis: Whether to skip query analysis (kept for backward compatibility)
+            quantization: Quantization method to use (None, '4bit', '8bit')
+        """
         self.vector_store = vector_store
         self.use_cot = use_cot
         self.collection = collection
+        self.quantization = quantization
+        self.model_name = model_name
         # skip_analysis parameter kept for backward compatibility but no longer used
         
-        # Load HuggingFace token from config
-        try:
-            with open('config.yaml', 'r') as f:
-                config = yaml.safe_load(f)
-            token = config.get('HUGGING_FACE_HUB_TOKEN')
-            if not token:
-                raise ValueError("HUGGING_FACE_HUB_TOKEN not found in config.yaml")
-        except Exception as e:
-            raise Exception(f"Failed to load HuggingFace token from config.yaml: {str(e)}")
+        # Check if this is a GGUF model
+        self.is_gguf = model_name.endswith('.gguf') or 'GGUF' in model_name
         
-        # Load model and tokenizer
-        print("\nLoading model and tokenizer...")
-        print("Note: Initial loading and inference with Mistral-7B can take 1-5 minutes depending on your hardware.")
-        print("Subsequent queries will be faster but may still take 30-60 seconds per response.")
-        
-        # Check if CUDA is available and set appropriate dtype
-        if torch.cuda.is_available():
-            print("CUDA is available. Using GPU acceleration.")
-            dtype = torch.float16
+        if self.is_gguf:
+            # Load GGUF model
+            print("\nLoading GGUF model...")
+            print(f"Model: {model_name}")
+            print("Note: Initial loading and inference can take 1-5 minutes depending on your hardware.")
+            
+            # Initialize GGUF model handler
+            self.gguf_handler = GGUFModelHandler(model_name)
+            
+            # Create pipeline-like interface
+            self.pipeline = self.gguf_handler
+            
         else:
-            print("CUDA is not available. Using CPU only (this will be slow).")
-            dtype = torch.float32
-        
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=dtype,
-            device_map="auto",
-            token=token,
-            # Add optimization flags
-            low_cpu_mem_usage=True,
-            offload_folder="offload"
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
-        
-        # Create text generation pipeline with optimized settings
-        self.pipeline = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            max_new_tokens=512,
-            do_sample=True,
-            temperature=0.1,
-            top_p=0.95,
-            device_map="auto"
-        )
-        print("✓ Model loaded successfully")
+            # Load HuggingFace token from config
+            try:
+                with open('config.yaml', 'r') as f:
+                    config = yaml.safe_load(f)
+                token = config.get('HUGGING_FACE_HUB_TOKEN')
+                if not token:
+                    raise ValueError("HUGGING_FACE_HUB_TOKEN not found in config.yaml")
+            except Exception as e:
+                raise Exception(f"Failed to load HuggingFace token from config.yaml: {str(e)}")
+            
+            # Load model and tokenizer
+            print("\nLoading model and tokenizer...")
+            print(f"Model: {model_name}")
+            if quantization:
+                print(f"Quantization: {quantization}")
+            print("Note: Initial loading and inference can take 1-5 minutes depending on your hardware.")
+            print("Subsequent queries will be faster but may still take 30-60 seconds per response.")
+            
+            # Check if CUDA is available and set appropriate dtype
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU acceleration.")
+                dtype = torch.float16
+            else:
+                print("CUDA is not available. Using CPU only (this will be slow).")
+                dtype = torch.float32
+            
+            # Set up model loading parameters
+            model_kwargs = {
+                "torch_dtype": dtype,
+                "device_map": "auto",
+                "token": token,
+                "low_cpu_mem_usage": True,
+                "offload_folder": "offload"
+            }
+            
+            # Apply quantization if specified
+            if quantization == '4bit':
+                try:
+                    from transformers import BitsAndBytesConfig
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_use_double_quant=True,
+                        bnb_4bit_quant_type="nf4"
+                    )
+                    model_kwargs["quantization_config"] = quantization_config
+                    print("Using 4-bit quantization with bitsandbytes")
+                except ImportError:
+                    print("Warning: bitsandbytes not installed. Falling back to standard loading.")
+                    print("To use 4-bit quantization, install bitsandbytes: pip install bitsandbytes")
+            elif quantization == '8bit':
+                try:
+                    from transformers import BitsAndBytesConfig
+                    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+                    model_kwargs["quantization_config"] = quantization_config
+                    print("Using 8-bit quantization with bitsandbytes")
+                except ImportError:
+                    print("Warning: bitsandbytes not installed. Falling back to standard loading.")
+                    print("To use 8-bit quantization, install bitsandbytes: pip install bitsandbytes")
+            
+            # Load model with appropriate settings
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                **model_kwargs
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
+            
+            # Create text generation pipeline with optimized settings
+            self.pipeline = pipeline(
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                max_new_tokens=512,
+                do_sample=True,
+                temperature=0.1,
+                top_p=0.95,
+                device_map="auto"
+            )
+            print("✓ Model loaded successfully")
         
         # Create LLM wrapper
         self.llm = LocalLLM(self.pipeline)
