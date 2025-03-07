@@ -14,6 +14,7 @@ The system has the following features:
 - Smart context retrieval and response generation
 - FastAPI-based REST API for document upload and querying
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
+- Support for quantized models (4-bit/8-bit) and GGUF models for faster inference
 - Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
 
 <img src="img/gradio_1.png" alt="Gradio Interface" width="80%">
@@ -41,6 +42,8 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
   - Minimum 16GB RAM (recommended >24GBs)
   - GPU with 8GB VRAM recommended for better performance
   - Will run on CPU if GPU is not available, but will be significantly slower.
+  - For quantized models (4-bit/8-bit): Reduced VRAM requirements (4-6GB) with minimal performance impact
+  - For GGUF models: Further reduced memory requirements, with models automatically optimizing GPU usage based on available VRAM
 
 ### Setup
 
@@ -48,7 +51,7 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
 
     ```bash
     git clone https://github.com/oracle-devrel/devrel-labs.git
-    cd agentic-rag
+    cd devrel-labs/agentic_rag
     pip install -r requirements.txt
     ```
 
@@ -75,6 +78,15 @@ Here you can find a result of using Chain of Thought (CoT) reasoning:
 
    If no API key is provided, the system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
+2. For quantized models and GGUF support, ensure these packages are installed:
+
+    ```bash
+    sudo apt install build-essential
+    pip install bitsandbytes>=0.41.0 llama-cpp-python>=0.2.38 huggingface_hub
+    ```
+
+3. To run `llama-cpp` models on Windows, you will need to install Visual C++ Build Tools, and install the C++ development-related components throughout the installation procedure. Choosing the "C++ build tools" and any necessary libraries or packages is usually part of this.
+
 ## 1. Getting Started
 
 You can launch this solution in three ways:
@@ -105,13 +117,22 @@ python gradio_app.py
 
 This will start the Gradio server and automatically open the interface in your default browser at `http://localhost:7860`. The interface has two main tabs:
 
-1. **Document Processing**:
+1. **Model Management**:
+   - Download models in advance to prepare them for use
+   - View model information including size and VRAM requirements
+   - Check download status and error messages
+
+2. **Document Processing**:
    - Upload PDFs using the file uploader
    - Process web content by entering URLs
    - View processing status and results
 
-2. **Chat Interface**:
-   - Select between Local (Mistral) and OpenAI models
+3. **Chat Interface**:
+   - Select between different model options:
+     - Local (Mistral) - Default Mistral-7B model
+     - Local (Mistral) with 4-bit or 8-bit quantization for faster inference
+     - GGUF models (Phi-4-mini, Qwen_QwQ-32B, TinyR1-32B) for optimized performance
+     - OpenAI (if API key is configured)
    - Toggle Chain of Thought reasoning for more detailed responses
    - Chat with your documents using natural language
    - Clear chat history as needed
