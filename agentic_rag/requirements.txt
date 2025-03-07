@@ -16,3 +16,6 @@ gradio
 lxml_html_clean
 langchain
 gitingest
+bitsandbytes>=0.41.0
+llama-cpp-python>=0.2.38
+huggingface_hub
