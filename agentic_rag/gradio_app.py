@@ -103,7 +103,7 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
             model_type = "Local (Mistral)"
         elif "Ollama" in agent_type:
             model_type = "Ollama"
-            # Extract model name from agent_type
+            # Extract model name from agent_type and use correct Ollama model names
             if "llama3" in agent_type.lower():
                 model_name = "ollama:llama3"
             elif "phi-3" in agent_type.lower():
@@ -587,6 +587,18 @@ def download_model(model_type: str) -> str:
                 
                 print(f"Pulling Ollama model: {model_name}")
                 start_time = time.time()
+                
+                # Check if model already exists
+                try:
+                    models = ollama.list().models
+                    available_models = [model.model for model in models]
+                    
+                    # Check for model with or without :latest suffix
+                    if model_name in available_models or f"{model_name}:latest" in available_models:
+                        return f"✅ Model {model_name} is already available in Ollama."
+                except Exception:
+                    # If we can't check, proceed with pull anyway
+                    pass
                 
                 # Pull the model with progress tracking
                 progress_text = ""

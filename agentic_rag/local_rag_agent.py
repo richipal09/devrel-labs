@@ -51,7 +51,8 @@ class OllamaModelHandler:
         Args:
             model_name: Name of the Ollama model to use
         """
-        self.model_name = model_name
+        # Remove the 'ollama:' prefix if present
+        self.model_name = model_name.replace("ollama:", "") if model_name.startswith("ollama:") else model_name
         self._check_ollama_running()
     
     def _check_ollama_running(self):
@@ -67,8 +68,13 @@ class OllamaModelHandler:
                 
                 # Check if the requested model is available
                 if self.model_name not in available_models:
-                    print(f"Model '{self.model_name}' not found in Ollama. Available models: {', '.join(available_models)}")
-                    print(f"You can pull it with: ollama pull {self.model_name}")
+                    # Try with :latest suffix
+                    if f"{self.model_name}:latest" in available_models:
+                        self.model_name = f"{self.model_name}:latest"
+                        print(f"Using model with :latest suffix: {self.model_name}")
+                    else:
+                        print(f"Model '{self.model_name}' not found in Ollama. Available models: {', '.join(available_models)}")
+                        print(f"You can pull it with: ollama pull {self.model_name}")
             except Exception as e:
                 raise ConnectionError(f"Failed to connect to Ollama. Please make sure Ollama is running. Error: {str(e)}")
                 
@@ -426,6 +432,33 @@ Answer:"""
         
         prompt = template.format(context=context_str, query=query)
         response = self._generate_text(prompt)
+        
+        # Add sources to response if available
+        if context:
+            # Group sources by document
+            sources = {}
+            for item in context:
+                source = item['metadata'].get('source', 'Unknown')
+                if source not in sources:
+                    sources[source] = set()
+                
+                # Add page number if available
+                if 'page' in item['metadata']:
+                    sources[source].add(str(item['metadata']['page']))
+                # Add file path if available for code
+                if 'file_path' in item['metadata']:
+                    sources[source] = item['metadata']['file_path']
+            
+            # Print concise source information
+            print("\nSources detected:")
+            for source, details in sources.items():
+                if isinstance(details, set):  # PDF with pages
+                    pages = ", ".join(sorted(details))
+                    print(f"Document: {source} (pages: {pages})")
+                else:  # Code with file path
+                    print(f"Code file: {source}")
+            
+            response['sources'] = sources
         
         return {
             "answer": response,

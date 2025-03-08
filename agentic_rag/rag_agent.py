@@ -190,24 +190,50 @@ class RAGAgent:
         return response
     
     def _generate_response(self, query: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate a response using the retrieved context"""
-        context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
-                                  for i, item in enumerate(context)])
+        """Generate a response based on the query and context"""
+        # Format context for the prompt
+        formatted_context = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
+                                       for i, item in enumerate(context)])
         
-        template = """Answer the following query using the provided context. 
-Respond as if you are knowledgeable about the topic and incorporate the context naturally.
-Do not mention limitations in the context or that you couldn't find specific information.
-
-Context:
-{context}
-
-Query: {query}
-
-Answer:"""
+        # Create the prompt
+        system_prompt = """You are an AI assistant answering questions based on the provided context.
+Answer the question based on the context provided. If the answer is not in the context, say "I don't have enough information to answer this question." Be concise and accurate."""
         
-        prompt = ChatPromptTemplate.from_template(template)
-        messages = prompt.format_messages(context=context_str, query=query)
+        # Create messages for the chat model
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{formatted_context}\n\nQuestion: {query}"}
+        ]
+        
+        # Generate response
         response = self.llm.invoke(messages)
+        
+        # Add sources to response if available
+        if context:
+            # Group sources by document
+            sources = {}
+            for item in context:
+                source = item['metadata'].get('source', 'Unknown')
+                if source not in sources:
+                    sources[source] = set()
+                
+                # Add page number if available
+                if 'page' in item['metadata']:
+                    sources[source].add(str(item['metadata']['page']))
+                # Add file path if available for code
+                if 'file_path' in item['metadata']:
+                    sources[source] = item['metadata']['file_path']
+            
+            # Print concise source information
+            print("\nSources detected:")
+            for source, details in sources.items():
+                if isinstance(details, set):  # PDF with pages
+                    pages = ", ".join(sorted(details))
+                    print(f"Document: {source} (pages: {pages})")
+                else:  # Code with file path
+                    print(f"Code file: {source}")
+            
+            response['sources'] = sources
         
         return {
             "answer": response.content,
