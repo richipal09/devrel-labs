@@ -431,12 +431,12 @@ Query: {query}
 Answer:"""
         
         prompt = template.format(context=context_str, query=query)
-        response = self._generate_text(prompt)
+        response_text = self._generate_text(prompt)
         
         # Add sources to response if available
+        sources = {}
         if context:
             # Group sources by document
-            sources = {}
             for item in context:
                 source = item['metadata'].get('source', 'Unknown')
                 if source not in sources:
@@ -457,12 +457,11 @@ Answer:"""
                     print(f"Document: {source} (pages: {pages})")
                 else:  # Code with file path
                     print(f"Code file: {source}")
-            
-            response['sources'] = sources
         
         return {
-            "answer": response,
-            "context": context
+            "answer": response_text,
+            "context": context,
+            "sources": sources
         }
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:

@@ -198,10 +198,31 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
             # Add final formatted response to history
             history.append([message, formatted_response])
         else:
+            # For standard response (no CoT)
             formatted_response = response["answer"]
             print("\nStandard Response:")
             print("-" * 50)
             print(formatted_response)
+            
+            # Add sources if available
+            if response.get("context"):
+                print("\nSources Used:")
+                print("-" * 50)
+                sources_text = "\n\n📚 Sources used:\n"
+                formatted_response += sources_text
+                print(sources_text)
+                
+                for ctx in response["context"]:
+                    source = ctx["metadata"].get("source", "Unknown")
+                    if "page_numbers" in ctx["metadata"]:
+                        pages = ctx["metadata"].get("page_numbers", [])
+                        source_line = f"- {source} (pages: {pages})\n"
+                    else:
+                        file_path = ctx["metadata"].get("file_path", "Unknown")
+                        source_line = f"- {source} (file: {file_path})\n"
+                    formatted_response += source_line
+                    print(source_line)
+            
             history.append([message, formatted_response])
         
         print("\n" + "="*50)
