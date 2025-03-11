@@ -262,27 +262,13 @@ class LocalRAGAgent:
             pdf_context = self.vector_store.query_pdf_collection(query)
             initial_context.extend(pdf_context)
             logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
-            # Log each chunk with citation number but not full content
-            for i, chunk in enumerate(pdf_context):
-                source = chunk["metadata"].get("source", "Unknown")
-                pages = chunk["metadata"].get("page_numbers", [])
-                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
-                # Only log content preview at debug level
-                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
-                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+            # Don't log individual sources to keep console clean
         elif self.collection == "Repository Collection":
             logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
             initial_context.extend(repo_context)
             logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
-            # Log each chunk with citation number but not full content
-            for i, chunk in enumerate(repo_context):
-                source = chunk["metadata"].get("source", "Unknown")
-                file_path = chunk["metadata"].get("file_path", "Unknown")
-                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
-                # Only log content preview at debug level
-                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
-                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+            # Don't log individual sources to keep console clean
         # For General Knowledge, no context is needed
         else:
             logger.info("Using General Knowledge collection, no context retrieval needed")
@@ -306,9 +292,8 @@ class LocalRAGAgent:
                         continue
                     step_research = self.agents["researcher"].research(query, step)
                     research_results.append({"step": step, "findings": step_research})
-                    # Log which sources were used for this step
-                    source_indices = [initial_context.index(finding) + 1 for finding in step_research if finding in initial_context]
-                    logger.info(f"Research for step: {step}\nUsing sources: {source_indices}")
+                    # Don't log source indices to keep console clean
+                    logger.info(f"Research for step: {step}")
             else:
                 # If no researcher or no context, use the steps directly
                 research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
@@ -328,7 +313,8 @@ class LocalRAGAgent:
                     result["findings"] if result["findings"] else [{"content": "Using general knowledge", "metadata": {"source": "General Knowledge"}}]
                 )
                 reasoning_steps.append(step_reasoning)
-                logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
+                # Log just the step, not the full reasoning
+                logger.info(f"Reasoning for step: {result['step']}")
             
             # Step 4: Synthesize final answer
             logger.info("Step 4: Synthesis")
@@ -337,7 +323,7 @@ class LocalRAGAgent:
                 return self._generate_general_response(query)
             
             final_answer = self.agents["synthesizer"].synthesize(query, reasoning_steps)
-            logger.info(f"Final synthesized answer:\n{final_answer}")
+            logger.info("Final answer synthesized successfully")
             
             return {
                 "answer": final_answer,
@@ -360,26 +346,12 @@ class LocalRAGAgent:
             logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
             pdf_context = self.vector_store.query_pdf_collection(query)
             logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
-            # Log each chunk with citation number but not full content
-            for i, chunk in enumerate(pdf_context):
-                source = chunk["metadata"].get("source", "Unknown")
-                pages = chunk["metadata"].get("page_numbers", [])
-                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
-                # Only log content preview at debug level
-                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
-                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+            # Don't log individual sources to keep console clean
         elif self.collection == "Repository Collection":
             logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
             logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
-            # Log each chunk with citation number but not full content
-            for i, chunk in enumerate(repo_context):
-                source = chunk["metadata"].get("source", "Unknown")
-                file_path = chunk["metadata"].get("file_path", "Unknown")
-                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
-                # Only log content preview at debug level
-                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
-                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+            # Don't log individual sources to keep console clean
         
         # Combine all context
         all_context = pdf_context + repo_context
@@ -451,12 +423,9 @@ Answer:"""
             
             # Print concise source information
             print("\nSources detected:")
-            for source, details in sources.items():
-                if isinstance(details, set):  # PDF with pages
-                    pages = ", ".join(sorted(details))
-                    print(f"Document: {source} (pages: {pages})")
-                else:  # Code with file path
-                    print(f"Code file: {source}")
+            # Print a single line for each source without additional details
+            for source in sources:
+                print(f"- {source}")
         
         return {
             "answer": response_text,
