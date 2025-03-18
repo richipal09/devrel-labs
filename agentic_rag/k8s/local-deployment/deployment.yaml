@@ -104,18 +104,11 @@ spec:
         configMap:
           name: agentic-rag-config
       - name: data-volume
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: agentic-rag-data-pvc
       - name: chroma-volume
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: agentic-rag-chroma-pvc
       - name: ollama-models
-        emptyDir: {}
-      # For production, consider using persistent volumes instead of emptyDir
-      # - name: data-volume
-      #   persistentVolumeClaim:
-      #     claimName: agentic-rag-data-pvc
-      # - name: chroma-volume
-      #   persistentVolumeClaim:
-      #     claimName: agentic-rag-chroma-pvc
-      # - name: ollama-models
-      #   persistentVolumeClaim:
-      #     claimName: ollama-models-pvc 
+        persistentVolumeClaim:
+          claimName: ollama-models-pvc
