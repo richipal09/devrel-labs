@@ -21,9 +21,11 @@ spec:
           requests:
             memory: "8Gi"
             cpu: "2"
+            ephemeral-storage: "50Gi"  # Add this
           limits:
             memory: "16Gi"
             cpu: "4"
+            ephemeral-storage: "100Gi"  # Add this
         ports:
         - containerPort: 7860
           name: gradio
@@ -81,7 +83,7 @@ spec:
           
           # Clone and set up the application
           cd /app
-          git clone https://github.com/oracle-devrel/devrel-labs.git .
+          git clone https://github.com/oracle-devrel/devrel-labs.git
           cd agentic_rag
           pip install -r requirements.txt
           
