@@ -34,18 +34,47 @@ app.add_middleware(
 pdf_processor = PDFProcessor()
 vector_store = VectorStore()
 
-# Initialize RAG agent - use OpenAI if API key is available, otherwise use local model. by default = local model
+# Check for Ollama availability
+try:
+    import ollama
+    ollama_available = True
+    print("\nOllama is available. You can use Ollama models for RAG.")
+except ImportError:
+    ollama_available = False
+    print("\nOllama not installed. You can install it with: pip install ollama")
+
+# Initialize RAG agent - use OpenAI if API key is available, otherwise use local model or Ollama
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if openai_api_key:
     print("\nUsing OpenAI GPT-4 for RAG...")
     rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key)
 else:
-    print("\nOpenAI API key not found. Using local Mistral model for RAG...")
-    rag_agent = LocalRAGAgent(vector_store=vector_store)
+    # Try to use local Mistral model first
+    try:
+        print("\nTrying to use local Mistral model...")
+        rag_agent = LocalRAGAgent(vector_store=vector_store)
+        print("Successfully initialized local Mistral model.")
+    except Exception as e:
+        print(f"\nFailed to initialize local Mistral model: {str(e)}")
+        
+        # Fall back to Ollama if Mistral fails and Ollama is available
+        if ollama_available:
+            try:
+                print("\nFalling back to Ollama with llama3 model...")
+                rag_agent = LocalRAGAgent(vector_store=vector_store, model_name="ollama:llama3")
+                print("Successfully initialized Ollama with llama3 model.")
+            except Exception as e:
+                print(f"\nFailed to initialize Ollama: {str(e)}")
+                print("No available models. Please check your configuration.")
+                raise e
+        else:
+            print("\nNo available models. Please check your configuration.")
+            raise e
 
 class QueryRequest(BaseModel):
     query: str
     use_cot: bool = False
+    model: Optional[str] = None  # Allow specifying model in the request
 
 class QueryResponse(BaseModel):
     answer: str
@@ -89,11 +118,35 @@ async def upload_pdf(file: UploadFile = File(...)):
 async def query(request: QueryRequest):
     """Process a query using the RAG agent"""
     try:
-        # Reinitialize agent with CoT setting
-        if openai_api_key:
-            rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key, use_cot=request.use_cot)
+        # Determine which model to use
+        if request.model:
+            if request.model.startswith("ollama:") and ollama_available:
+                # Use specified Ollama model
+                rag_agent = LocalRAGAgent(vector_store=vector_store, model_name=request.model, use_cot=request.use_cot)
+            elif request.model == "openai" and openai_api_key:
+                # Use OpenAI
+                rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key, use_cot=request.use_cot)
+            else:
+                # Use default local model
+                rag_agent = LocalRAGAgent(vector_store=vector_store, use_cot=request.use_cot)
         else:
-            rag_agent = LocalRAGAgent(vector_store=vector_store, use_cot=request.use_cot)
+            # Reinitialize agent with CoT setting using default model
+            if openai_api_key:
+                rag_agent = RAGAgent(vector_store=vector_store, openai_api_key=openai_api_key, use_cot=request.use_cot)
+            else:
+                # Try local Mistral first
+                try:
+                    rag_agent = LocalRAGAgent(vector_store=vector_store, use_cot=request.use_cot)
+                except Exception as e:
+                    print(f"Failed to initialize local Mistral model: {str(e)}")
+                    # Fall back to Ollama if available
+                    if ollama_available:
+                        try:
+                            rag_agent = LocalRAGAgent(vector_store=vector_store, model_name="ollama:llama3", use_cot=request.use_cot)
+                        except Exception as e2:
+                            raise Exception(f"Failed to initialize any model: {str(e2)}")
+                    else:
+                        raise e
             
         response = rag_agent.process_query(request.query)
         return response

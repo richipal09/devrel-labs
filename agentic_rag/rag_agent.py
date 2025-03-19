@@ -1,8 +1,6 @@
 from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
-from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field
 from store import VectorStore
 from agents.agent_factory import create_agents
 import os
@@ -14,76 +12,75 @@ import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class QueryAnalysis(BaseModel):
-    """Pydantic model for query analysis output"""
-    query_type: str = Field(
-        description="Type of query: 'pdf_documents', 'general_knowledge', or 'unsupported'"
-    )
-    reasoning: str = Field(
-        description="Reasoning behind the query type selection"
-    )
-    requires_context: bool = Field(
-        description="Whether the query requires additional context to answer"
-    )
-
 class RAGAgent:
-    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, language: str = "en"):
+    def __init__(self, vector_store: VectorStore, openai_api_key: str, use_cot: bool = False, collection: str = None, skip_analysis: bool = False):
         """Initialize RAG agent with vector store and LLM"""
         self.vector_store = vector_store
         self.use_cot = use_cot
-        self.language = language
+        self.collection = collection
+        # skip_analysis parameter kept for backward compatibility but no longer used
         self.llm = ChatOpenAI(
             model="gpt-4-turbo-preview",
             temperature=0,
             api_key=openai_api_key
         )
-        self.query_analyzer = self._create_query_analyzer()
         
         # Initialize specialized agents
         self.agents = create_agents(self.llm, vector_store) if use_cot else None
     
-    def _create_query_analyzer(self):
-        """Create a chain for analyzing queries"""
-        template = """You are an intelligent agent that analyzes user queries to determine the best source of information.
-        
-        Analyze the following query and determine:
-        1. Whether it should query the PDF documents collection or general knowledge collection
-        2. Your reasoning for this decision
-        3. Whether the query requires additional context to provide a good answer
-        
-        Query: {query}
-        
-        {format_instructions}
-        """
-        
-        prompt = ChatPromptTemplate.from_template(template)
-        output_parser = PydanticOutputParser(pydantic_object=QueryAnalysis)
-        
-        prompt = prompt.partial(format_instructions=output_parser.get_format_instructions())
-        
-        return {"prompt": prompt, "parser": output_parser}
-    
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Analyze the query
-        analysis = self._analyze_query(query)
-        logger.info(f"Query analysis: {analysis}")
+        logger.info(f"Processing query with collection: {self.collection}")
         
-        if self.use_cot:
-            return self._process_query_with_cot(query, analysis)
+        # Process based on collection type and CoT setting
+        if self.collection == "General Knowledge":
+            # For General Knowledge, directly use general response
+            if self.use_cot:
+                return self._process_query_with_cot(query)
+            else:
+                return self._generate_general_response(query)
         else:
-            return self._process_query_standard(query, analysis)
+            # For PDF or Repository collections, use context-based processing
+            if self.use_cot:
+                return self._process_query_with_cot(query)
+            else:
+                return self._process_query_standard(query)
     
-    def _process_query_with_cot(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_with_cot(self, query: str) -> Dict[str, Any]:
         """Process query using Chain of Thought reasoning with multiple agents"""
         logger.info("Processing query with Chain of Thought reasoning")
         
-        # Get initial context if needed
+        # Get initial context based on selected collection
         initial_context = []
-        if analysis.requires_context and analysis.query_type != "unsupported":
+        if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
             pdf_context = self.vector_store.query_pdf_collection(query)
+            initial_context.extend(pdf_context)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(pdf_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                pages = chunk["metadata"].get("page_numbers", [])
+                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+        elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
-            initial_context = pdf_context + repo_context
+            initial_context.extend(repo_context)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(repo_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                file_path = chunk["metadata"].get("file_path", "Unknown")
+                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+        # For General Knowledge, no context is needed
+        else:
+            logger.info("Using General Knowledge collection, no context retrieval needed")
         
         try:
             # Step 1: Planning
@@ -104,7 +101,9 @@ class RAGAgent:
                         continue
                     step_research = self.agents["researcher"].research(query, step)
                     research_results.append({"step": step, "findings": step_research})
-                    logger.info(f"Research for step: {step}\nFindings: {step_research}")
+                    # Log which sources were used for this step
+                    source_indices = [initial_context.index(finding) + 1 for finding in step_research if finding in initial_context]
+                    logger.info(f"Research for step: {step}\nUsing sources: {source_indices}")
             else:
                 # If no researcher or no context, use the steps directly
                 research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
@@ -145,54 +144,96 @@ class RAGAgent:
             logger.info("Falling back to general response")
             return self._generate_general_response(query)
     
-    def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_standard(self, query: str) -> Dict[str, Any]:
         """Process query using standard approach without Chain of Thought"""
-        # If query type is unsupported, use general knowledge
-        if analysis.query_type == "unsupported":
-            return self._generate_general_response(query)
+        # Initialize context variables
+        pdf_context = []
+        repo_context = []
         
-        # First try to get context from PDF documents
-        pdf_context = self.vector_store.query_pdf_collection(query)
-        
-        # Then try repository documents
-        repo_context = self.vector_store.query_repo_collection(query)
+        # Get context based on selected collection
+        if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
+            pdf_context = self.vector_store.query_pdf_collection(query)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(pdf_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                pages = chunk["metadata"].get("page_numbers", [])
+                logger.info(f"Source [{i+1}]: {source} (pages: {pages})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
+        elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
+            repo_context = self.vector_store.query_repo_collection(query)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Log each chunk with citation number but not full content
+            for i, chunk in enumerate(repo_context):
+                source = chunk["metadata"].get("source", "Unknown")
+                file_path = chunk["metadata"].get("file_path", "Unknown")
+                logger.info(f"Source [{i+1}]: {source} (file: {file_path})")
+                # Only log content preview at debug level
+                content_preview = chunk["content"][:150] + "..." if len(chunk["content"]) > 150 else chunk["content"]
+                logger.debug(f"Content preview for source [{i+1}]: {content_preview}")
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if all_context and analysis.requires_context:
+        if all_context:
+            logger.info(f"Generating response using {len(all_context)} context chunks")
             response = self._generate_response(query, all_context)
         else:
+            logger.info("No context found, using general knowledge")
             response = self._generate_general_response(query)
         
         return response
     
-    def _analyze_query(self, query: str) -> QueryAnalysis:
-        """Analyze the query to determine the best source of information"""
-        chain_input = {"query": query}
-        result = self.llm.invoke(self.query_analyzer["prompt"].format_messages(**chain_input))
-        return self.query_analyzer["parser"].parse(result.content)
-    
     def _generate_response(self, query: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate a response using the retrieved context"""
-        context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
-                                  for i, item in enumerate(context)])
+        """Generate a response based on the query and context"""
+        # Format context for the prompt
+        formatted_context = "\n\n".join([f"Context {i+1}:\n{item['content']}" 
+                                       for i, item in enumerate(context)])
         
-        template = """Answer the following query using the provided context. 
-If the context doesn't contain enough information to answer accurately, 
-say so explicitly.
-
-Context:
-{context}
-
-Query: {query}
-
-Answer:"""
+        # Create the prompt
+        system_prompt = """You are an AI assistant answering questions based on the provided context.
+Answer the question based on the context provided. If the answer is not in the context, say "I don't have enough information to answer this question." Be concise and accurate."""
         
-        prompt = ChatPromptTemplate.from_template(template)
-        messages = prompt.format_messages(context=context_str, query=query)
+        # Create messages for the chat model
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{formatted_context}\n\nQuestion: {query}"}
+        ]
+        
+        # Generate response
         response = self.llm.invoke(messages)
+        
+        # Add sources to response if available
+        if context:
+            # Group sources by document
+            sources = {}
+            for item in context:
+                source = item['metadata'].get('source', 'Unknown')
+                if source not in sources:
+                    sources[source] = set()
+                
+                # Add page number if available
+                if 'page' in item['metadata']:
+                    sources[source].add(str(item['metadata']['page']))
+                # Add file path if available for code
+                if 'file_path' in item['metadata']:
+                    sources[source] = item['metadata']['file_path']
+            
+            # Print concise source information
+            print("\nSources detected:")
+            for source, details in sources.items():
+                if isinstance(details, set):  # PDF with pages
+                    pages = ", ".join(sorted(details))
+                    print(f"Document: {source} (pages: {pages})")
+                else:  # Code with file path
+                    print(f"Code file: {source}")
+            
+            response['sources'] = sources
         
         return {
             "answer": response.content,
@@ -201,7 +242,7 @@ Answer:"""
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:
         """Generate a response using general knowledge when no context is available"""
-        template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
+        template = """You are a helpful AI assistant. Answer the following query using your general knowledge.
 
 Query: {query}
 
@@ -211,10 +252,8 @@ Answer:"""
         messages = prompt.format_messages(query=query)
         response = self.llm.invoke(messages)
         
-        prefix = "I didn't find specific information in my documents, but here's what I know about it:\n\n"
-        
         return {
-            "answer": prefix + response.content,
+            "answer": response.content,
             "context": []
         }
 
@@ -223,6 +262,10 @@ def main():
     parser.add_argument("--query", required=True, help="Query to process")
     parser.add_argument("--store-path", default="chroma_db", help="Path to the vector store")
     parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
+    parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
+                        help="Specify which collection to query")
+    parser.add_argument("--skip-analysis", action="store_true", help="Skip query analysis step")
+    parser.add_argument("--verbose", action="store_true", help="Show full content of sources")
     
     args = parser.parse_args()
     
@@ -239,7 +282,13 @@ def main():
     
     try:
         store = VectorStore(persist_directory=args.store_path)
-        agent = RAGAgent(store, openai_api_key=os.getenv("OPENAI_API_KEY"), use_cot=args.use_cot)
+        agent = RAGAgent(
+            store, 
+            openai_api_key=os.getenv("OPENAI_API_KEY"), 
+            use_cot=args.use_cot, 
+            collection=args.collection,
+            skip_analysis=args.skip_analysis
+        )
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)
@@ -259,10 +308,22 @@ def main():
         
         if response.get("context"):
             print("\nSources used:")
-            for ctx in response["context"]:
+            print("-" * 50)
+            
+            # Print concise list of sources
+            for i, ctx in enumerate(response["context"]):
                 source = ctx["metadata"].get("source", "Unknown")
-                pages = ctx["metadata"].get("page_numbers", [])
-                print(f"- {source} (pages: {pages})")
+                if "page_numbers" in ctx["metadata"]:
+                    pages = ctx["metadata"].get("page_numbers", [])
+                    print(f"[{i+1}] {source} (pages: {pages})")
+                else:
+                    file_path = ctx["metadata"].get("file_path", "Unknown")
+                    print(f"[{i+1}] {source} (file: {file_path})")
+                
+                # Only print content if verbose flag is set
+                if args.verbose:
+                    content_preview = ctx["content"][:300] + "..." if len(ctx["content"]) > 300 else ctx["content"]
+                    print(f"    Content: {content_preview}\n")
     
     except Exception as e:
         print(f"\n✗ Error: {str(e)}")

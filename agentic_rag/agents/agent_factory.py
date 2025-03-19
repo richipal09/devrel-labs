@@ -27,11 +27,30 @@ class Agent(BaseModel):
     
     def log_prompt(self, prompt: str, prefix: str = ""):
         """Log a prompt being sent to the LLM"""
-        logger.info(f"\n{'='*80}\n{prefix} Prompt:\n{'-'*40}\n{prompt}\n{'='*80}")
+        # Check if the prompt contains context
+        if "Context:" in prompt:
+            # Split the prompt at "Context:" and keep only the first part
+            parts = prompt.split("Context:")
+            # Keep the first part and add a note that context is omitted
+            truncated_prompt = parts[0] + "Context: [Context omitted for brevity]"
+            if len(parts) > 2 and "Key Findings:" in parts[1]:
+                # For researcher prompts, keep the "Key Findings:" part
+                key_findings_part = parts[1].split("Key Findings:")
+                if len(key_findings_part) > 1:
+                    truncated_prompt += "\nKey Findings:" + key_findings_part[1]
+            logger.info(f"\n{'='*80}\n{prefix} Prompt:\n{'-'*40}\n{truncated_prompt}\n{'='*80}")
+        else:
+            # If no context, log the full prompt
+            logger.info(f"\n{'='*80}\n{prefix} Prompt:\n{'-'*40}\n{prompt}\n{'='*80}")
         
     def log_response(self, response: str, prefix: str = ""):
         """Log a response received from the LLM"""
-        logger.info(f"\n{'='*80}\n{prefix} Response:\n{'-'*40}\n{response}\n{'='*80}")
+        # Log the response but truncate if it's too long
+        if len(response) > 500:
+            truncated_response = response[:500] + "... [response truncated]"
+            logger.info(f"\n{'='*80}\n{prefix} Response:\n{'-'*40}\n{truncated_response}\n{'='*80}")
+        else:
+            logger.info(f"\n{'='*80}\n{prefix} Response:\n{'-'*40}\n{response}\n{'='*80}")
 
 class PlannerAgent(Agent):
     """Agent responsible for breaking down problems and planning steps"""
@@ -108,6 +127,7 @@ class ResearchAgent(Agent):
         
         Key Findings:"""
         
+        # Create context string but don't log it
         context_str = "\n\n".join([f"Source {i+1}:\n{item['content']}" for i, item in enumerate(all_results)])
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(step=step, context=context_str)
@@ -140,6 +160,7 @@ class ReasoningAgent(Agent):
         
         Conclusion:"""
         
+        # Create context string but don't log it
         context_str = "\n\n".join([f"Context {i+1}:\n{item['content']}" for i, item in enumerate(context)])
         prompt = ChatPromptTemplate.from_template(template)
         messages = prompt.format_messages(step=step, query=query, context=context_str)

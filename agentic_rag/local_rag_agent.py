@@ -1,13 +1,15 @@
 from typing import List, Dict, Any, Optional
 from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
 import torch
-from pydantic import BaseModel, Field
 from store import VectorStore
 from agents.agent_factory import create_agents
 import argparse
 import yaml
 import os
 import logging
+import time
+import json
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -16,18 +18,6 @@ logging.basicConfig(
     datefmt='%H:%M:%S'
 )
 logger = logging.getLogger(__name__)
-
-class QueryAnalysis(BaseModel):
-    """Pydantic model for query analysis output"""
-    query_type: str = Field(
-        description="Type of query: 'pdf_documents', 'general_knowledge', or 'unsupported'"
-    )
-    reasoning: str = Field(
-        description="Reasoning behind the query type selection"
-    )
-    requires_context: bool = Field(
-        description="Whether the query requires additional context to answer"
-    )
 
 class LocalLLM:
     """Wrapper for local LLM to match LangChain's ChatOpenAI interface"""
@@ -53,45 +43,189 @@ class LocalLLM:
         
         return Response(result.strip())
 
+class OllamaModelHandler:
+    """Handler for Ollama models"""
+    def __init__(self, model_name: str):
+        """Initialize Ollama model handler
+        
+        Args:
+            model_name: Name of the Ollama model to use
+        """
+        # Remove the 'ollama:' prefix if present
+        self.model_name = model_name.replace("ollama:", "") if model_name.startswith("ollama:") else model_name
+        self._check_ollama_running()
+    
+    def _check_ollama_running(self):
+        """Check if Ollama is running and the model is available"""
+        try:
+            import ollama
+            
+            # Check if Ollama is running
+            try:
+                models = ollama.list().models
+                available_models = [model.model for model in models]
+                print(f"Available Ollama models: {', '.join(available_models)}")
+                
+                # Check if the requested model is available
+                if self.model_name not in available_models:
+                    # Try with :latest suffix
+                    if f"{self.model_name}:latest" in available_models:
+                        self.model_name = f"{self.model_name}:latest"
+                        print(f"Using model with :latest suffix: {self.model_name}")
+                    else:
+                        print(f"Model '{self.model_name}' not found in Ollama. Available models: {', '.join(available_models)}")
+                        print(f"You can pull it with: ollama pull {self.model_name}")
+            except Exception as e:
+                raise ConnectionError(f"Failed to connect to Ollama. Please make sure Ollama is running. Error: {str(e)}")
+                
+        except ImportError:
+            raise ImportError("Failed to import ollama. Please install with: pip install ollama")
+    
+    def __call__(self, prompt, max_new_tokens=512, temperature=0.1, top_p=0.95, **kwargs):
+        """Generate text using the Ollama model"""
+        try:
+            import ollama
+            
+            # Generate text
+            response = ollama.generate(
+                model=self.model_name,
+                prompt=prompt,
+                options={
+                    "num_predict": max_new_tokens,
+                    "temperature": temperature,
+                    "top_p": top_p
+                }
+            )
+            
+            # Format result to match transformers pipeline output
+            formatted_result = [{
+                "generated_text": response["response"]
+            }]
+            
+            return formatted_result
+            
+        except Exception as e:
+            raise Exception(f"Failed to generate text with Ollama: {str(e)}")
+
 class LocalRAGAgent:
-    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", use_cot: bool = False, language: str = "en"):
-        """Initialize local RAG agent with vector store and local LLM"""
+    def __init__(self, vector_store: VectorStore, model_name: str = "mistralai/Mistral-7B-Instruct-v0.2", 
+                 use_cot: bool = False, collection: str = None, skip_analysis: bool = False,
+                 quantization: str = None):
+        """Initialize local RAG agent with vector store and local LLM
+        
+        Args:
+            vector_store: Vector store for retrieving context
+            model_name: HuggingFace model name/path or Ollama model name
+            use_cot: Whether to use Chain of Thought reasoning
+            collection: Collection to search in (PDF, Repository, or General Knowledge)
+            skip_analysis: Whether to skip query analysis (kept for backward compatibility)
+            quantization: Quantization method to use (None, '4bit', '8bit')
+        """
         self.vector_store = vector_store
         self.use_cot = use_cot
-        self.language = language
+        self.collection = collection
+        self.quantization = quantization
+        self.model_name = model_name
+        # skip_analysis parameter kept for backward compatibility but no longer used
         
-        # Load HuggingFace token from config
-        try:
-            with open('config.yaml', 'r') as f:
-                config = yaml.safe_load(f)
-            token = config.get('HUGGING_FACE_HUB_TOKEN')
-            if not token:
-                raise ValueError("HUGGING_FACE_HUB_TOKEN not found in config.yaml")
-        except Exception as e:
-            raise Exception(f"Failed to load HuggingFace token from config.yaml: {str(e)}")
+        # Check if this is an Ollama model
+        self.is_ollama = model_name.startswith("ollama:")
         
-        # Load model and tokenizer
-        print("\nLoading model and tokenizer...")
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16,
-            device_map="auto",
-            token=token
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
-        
-        # Create text generation pipeline
-        self.pipeline = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            max_new_tokens=512,
-            do_sample=True,
-            temperature=0.1,
-            top_p=0.95,
-            device_map="auto"
-        )
-        print("✓ Model loaded successfully")
+        if self.is_ollama:
+            # Extract the actual model name from the prefix
+            ollama_model_name = model_name.replace("ollama:", "")
+            
+            # Load Ollama model
+            print("\nLoading Ollama model...")
+            print(f"Model: {ollama_model_name}")
+            print("Note: Make sure Ollama is running on your system.")
+            
+            # Initialize Ollama model handler
+            self.ollama_handler = OllamaModelHandler(ollama_model_name)
+            
+            # Create pipeline-like interface
+            self.pipeline = self.ollama_handler
+            
+        else:
+            # Load HuggingFace token from config
+            try:
+                with open('config.yaml', 'r') as f:
+                    config = yaml.safe_load(f)
+                token = config.get('HUGGING_FACE_HUB_TOKEN')
+                if not token:
+                    raise ValueError("HUGGING_FACE_HUB_TOKEN not found in config.yaml")
+            except Exception as e:
+                raise Exception(f"Failed to load HuggingFace token from config.yaml: {str(e)}")
+            
+            # Load model and tokenizer
+            print("\nLoading model and tokenizer...")
+            print(f"Model: {model_name}")
+            if quantization:
+                print(f"Quantization: {quantization}")
+            print("Note: Initial loading and inference can take 1-5 minutes depending on your hardware.")
+            print("Subsequent queries will be faster but may still take 30-60 seconds per response.")
+            
+            # Check if CUDA is available and set appropriate dtype
+            if torch.cuda.is_available():
+                print("CUDA is available. Using GPU acceleration.")
+                dtype = torch.float16
+            else:
+                print("CUDA is not available. Using CPU only (this will be slow).")
+                dtype = torch.float32
+            
+            # Set up model loading parameters
+            model_kwargs = {
+                "torch_dtype": dtype,
+                "device_map": "auto",
+                "token": token,
+                "low_cpu_mem_usage": True,
+                "offload_folder": "offload"
+            }
+            
+            # Apply quantization if specified
+            if quantization == '4bit':
+                try:
+                    from transformers import BitsAndBytesConfig
+                    quantization_config = BitsAndBytesConfig(
+                        load_in_4bit=True,
+                        bnb_4bit_compute_dtype=torch.float16,
+                        bnb_4bit_use_double_quant=True,
+                        bnb_4bit_quant_type="nf4"
+                    )
+                    model_kwargs["quantization_config"] = quantization_config
+                    print("Using 4-bit quantization with bitsandbytes")
+                except ImportError:
+                    print("Warning: bitsandbytes not installed. Falling back to standard loading.")
+                    print("To use 4-bit quantization, install bitsandbytes: pip install bitsandbytes")
+            elif quantization == '8bit':
+                try:
+                    from transformers import BitsAndBytesConfig
+                    quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+                    model_kwargs["quantization_config"] = quantization_config
+                    print("Using 8-bit quantization with bitsandbytes")
+                except ImportError:
+                    print("Warning: bitsandbytes not installed. Falling back to standard loading.")
+                    print("To use 8-bit quantization, install bitsandbytes: pip install bitsandbytes")
+            
+            # Load model with appropriate settings
+            self.model = AutoModelForCausalLM.from_pretrained(
+                model_name,
+                **model_kwargs
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
+            
+            # Create text generation pipeline with optimized settings
+            self.pipeline = pipeline(
+                "text-generation",
+                model=self.model,
+                tokenizer=self.tokenizer,
+                max_new_tokens=512,
+                do_sample=True,
+                temperature=0.1,
+                top_p=0.95,
+                device_map="auto"
+            )
+            print("✓ Model loaded successfully")
         
         # Create LLM wrapper
         self.llm = LocalLLM(self.pipeline)
@@ -101,25 +235,43 @@ class LocalRAGAgent:
     
     def process_query(self, query: str) -> Dict[str, Any]:
         """Process a user query using the agentic RAG pipeline"""
-        # Analyze the query
-        analysis = self._analyze_query(query)
-        logger.info(f"Query analysis: {analysis}")
+        logger.info(f"Processing query with collection: {self.collection}")
         
-        if self.use_cot:
-            return self._process_query_with_cot(query, analysis)
+        # Process based on collection type and CoT setting
+        if self.collection == "General Knowledge":
+            # For General Knowledge, directly use general response
+            if self.use_cot:
+                return self._process_query_with_cot(query)
+            else:
+                return self._generate_general_response(query)
         else:
-            return self._process_query_standard(query, analysis)
+            # For PDF or Repository collections, use context-based processing
+            if self.use_cot:
+                return self._process_query_with_cot(query)
+            else:
+                return self._process_query_standard(query)
     
-    def _process_query_with_cot(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_with_cot(self, query: str) -> Dict[str, Any]:
         """Process query using Chain of Thought reasoning with multiple agents"""
         logger.info("Processing query with Chain of Thought reasoning")
         
-        # Get initial context if needed
+        # Get initial context based on selected collection
         initial_context = []
-        if analysis.requires_context and analysis.query_type != "unsupported":
+        if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
             pdf_context = self.vector_store.query_pdf_collection(query)
+            initial_context.extend(pdf_context)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Don't log individual sources to keep console clean
+        elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
             repo_context = self.vector_store.query_repo_collection(query)
-            initial_context = pdf_context + repo_context
+            initial_context.extend(repo_context)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Don't log individual sources to keep console clean
+        # For General Knowledge, no context is needed
+        else:
+            logger.info("Using General Knowledge collection, no context retrieval needed")
         
         try:
             # Step 1: Planning
@@ -140,7 +292,8 @@ class LocalRAGAgent:
                         continue
                     step_research = self.agents["researcher"].research(query, step)
                     research_results.append({"step": step, "findings": step_research})
-                    logger.info(f"Research for step: {step}\nFindings: {step_research}")
+                    # Don't log source indices to keep console clean
+                    logger.info(f"Research for step: {step}")
             else:
                 # If no researcher or no context, use the steps directly
                 research_results = [{"step": step, "findings": []} for step in plan.split("\n") if step.strip()]
@@ -160,7 +313,8 @@ class LocalRAGAgent:
                     result["findings"] if result["findings"] else [{"content": "Using general knowledge", "metadata": {"source": "General Knowledge"}}]
                 )
                 reasoning_steps.append(step_reasoning)
-                logger.info(f"Reasoning for step: {result['step']}\n{step_reasoning}")
+                # Log just the step, not the full reasoning
+                logger.info(f"Reasoning for step: {result['step']}")
             
             # Step 4: Synthesize final answer
             logger.info("Step 4: Synthesis")
@@ -169,7 +323,7 @@ class LocalRAGAgent:
                 return self._generate_general_response(query)
             
             final_answer = self.agents["synthesizer"].synthesize(query, reasoning_steps)
-            logger.info(f"Final synthesized answer:\n{final_answer}")
+            logger.info("Final answer synthesized successfully")
             
             return {
                 "answer": final_answer,
@@ -181,68 +335,42 @@ class LocalRAGAgent:
             logger.info("Falling back to general response")
             return self._generate_general_response(query)
     
-    def _process_query_standard(self, query: str, analysis: QueryAnalysis) -> Dict[str, Any]:
+    def _process_query_standard(self, query: str) -> Dict[str, Any]:
         """Process query using standard approach without Chain of Thought"""
-        # If query type is unsupported, use general knowledge
-        if analysis.query_type == "unsupported":
-            return self._generate_general_response(query)
+        # Initialize context variables
+        pdf_context = []
+        repo_context = []
         
-        # First try to get context from PDF documents
-        pdf_context = self.vector_store.query_pdf_collection(query)
-        
-        # Then try repository documents
-        repo_context = self.vector_store.query_repo_collection(query)
+        # Get context based on selected collection
+        if self.collection == "PDF Collection":
+            logger.info(f"Retrieving context from PDF Collection for query: '{query}'")
+            pdf_context = self.vector_store.query_pdf_collection(query)
+            logger.info(f"Retrieved {len(pdf_context)} chunks from PDF Collection")
+            # Don't log individual sources to keep console clean
+        elif self.collection == "Repository Collection":
+            logger.info(f"Retrieving context from Repository Collection for query: '{query}'")
+            repo_context = self.vector_store.query_repo_collection(query)
+            logger.info(f"Retrieved {len(repo_context)} chunks from Repository Collection")
+            # Don't log individual sources to keep console clean
         
         # Combine all context
         all_context = pdf_context + repo_context
         
         # Generate response using context if available, otherwise use general knowledge
-        if all_context and analysis.requires_context:
+        if all_context:
+            logger.info(f"Generating response using {len(all_context)} context chunks")
             response = self._generate_response(query, all_context)
         else:
+            logger.info("No context found, using general knowledge")
             response = self._generate_general_response(query)
         
         return response
     
-    def _analyze_query(self, query: str) -> QueryAnalysis:
-        """Analyze the query to determine the best source of information"""
-        prompt = f"""You are an intelligent agent that analyzes user queries to determine the best source of information.
-
-    Analyze the following query and determine:
-    1. Whether it should query the PDF documents collection or general knowledge collection
-    2. Your reasoning for this decision
-    3. Whether the query requires additional context to provide a good answer
-
-    Query: {query}
-
-    Provide your response in the following JSON format:
-    {{
-        "query_type": "pdf_documents OR general_knowledge OR unsupported",
-        "reasoning": "your reasoning here",
-        "requires_context": true OR false
-    }}
-
-    Response:"""
-        
-        try:
-            response = self._generate_text(prompt)
-            # Extract JSON from the response using string manipulation
-            start_idx = response.find("{")
-            end_idx = response.rfind("}") + 1
-            if start_idx != -1 and end_idx != -1:
-                json_str = response[start_idx:end_idx]
-                return QueryAnalysis.model_validate_json(json_str)
-            raise ValueError("Could not parse JSON from response")
-        except Exception as e:
-            # Default to PDF documents if parsing fails
-            return QueryAnalysis(
-                query_type="pdf_documents",
-                reasoning="Defaulting to PDF documents due to parsing error",
-                requires_context=True
-            )
-    
     def _generate_text(self, prompt: str, max_length: int = 512) -> str:
         """Generate text using the local model"""
+        # Log start time for performance monitoring
+        start_time = time.time()
+        
         result = self.pipeline(
             prompt,
             max_new_tokens=max_length,
@@ -252,6 +380,10 @@ class LocalRAGAgent:
             return_full_text=False
         )[0]["generated_text"]
         
+        # Log completion time
+        elapsed_time = time.time() - start_time
+        logger.info(f"Text generation completed in {elapsed_time:.2f} seconds")
+        
         return result.strip()
     
     def _generate_response(self, query: str, context: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -260,8 +392,8 @@ class LocalRAGAgent:
                                   for i, item in enumerate(context)])
         
         template = """Answer the following query using the provided context. 
-If the context doesn't contain enough information to answer accurately, 
-say so explicitly.
+Respond as if you are knowledgeable about the topic and incorporate the context naturally.
+Do not mention limitations in the context or that you couldn't find specific information.
 
 Context:
 {context}
@@ -271,16 +403,39 @@ Query: {query}
 Answer:"""
         
         prompt = template.format(context=context_str, query=query)
-        response = self._generate_text(prompt)
+        response_text = self._generate_text(prompt)
+        
+        # Add sources to response if available
+        sources = {}
+        if context:
+            # Group sources by document
+            for item in context:
+                source = item['metadata'].get('source', 'Unknown')
+                if source not in sources:
+                    sources[source] = set()
+                
+                # Add page number if available
+                if 'page' in item['metadata']:
+                    sources[source].add(str(item['metadata']['page']))
+                # Add file path if available for code
+                if 'file_path' in item['metadata']:
+                    sources[source] = item['metadata']['file_path']
+            
+            # Print concise source information
+            print("\nSources detected:")
+            # Print a single line for each source without additional details
+            for source in sources:
+                print(f"- {source}")
         
         return {
-            "answer": response,
-            "context": context
+            "answer": response_text,
+            "context": context,
+            "sources": sources
         }
 
     def _generate_general_response(self, query: str) -> Dict[str, Any]:
         """Generate a response using general knowledge when no context is available"""
-        template = """You are a helpful AI assistant. While I don't have specific information from my document collection about this query, I'll share what I know about it.
+        template = """You are a helpful AI assistant. Answer the following query using your general knowledge.
 
 Query: {query}
 
@@ -289,10 +444,8 @@ Answer:"""
         prompt = template.format(query=query)
         response = self._generate_text(prompt)
         
-        prefix = "I didn't find specific information in my documents, but here's what I know about it:\n\n"
-        
         return {
-            "answer": prefix + response,
+            "answer": response,
             "context": []
         }
 
@@ -303,6 +456,10 @@ def main():
     parser.add_argument("--model", default="mistralai/Mistral-7B-Instruct-v0.2", help="Model to use")
     parser.add_argument("--quiet", action="store_true", help="Disable verbose logging")
     parser.add_argument("--use-cot", action="store_true", help="Enable Chain of Thought reasoning")
+    parser.add_argument("--collection", choices=["PDF Collection", "Repository Collection", "General Knowledge"], 
+                        help="Specify which collection to query")
+    parser.add_argument("--skip-analysis", action="store_true", help="Skip query analysis step")
+    parser.add_argument("--verbose", action="store_true", help="Show full content of sources")
     
     args = parser.parse_args()
     
@@ -319,7 +476,13 @@ def main():
         logger.info(f"Initializing vector store from: {args.store_path}")
         store = VectorStore(persist_directory=args.store_path)
         logger.info("Initializing local RAG agent...")
-        agent = LocalRAGAgent(store, model_name=args.model, use_cot=args.use_cot)
+        agent = LocalRAGAgent(
+            store, 
+            model_name=args.model, 
+            use_cot=args.use_cot, 
+            collection=args.collection,
+            skip_analysis=args.skip_analysis
+        )
         
         print(f"\nProcessing query: {args.query}")
         print("=" * 50)
@@ -339,10 +502,22 @@ def main():
         
         if response.get("context"):
             print("\nSources used:")
-            for ctx in response["context"]:
+            print("-" * 50)
+            
+            # Print concise list of sources
+            for i, ctx in enumerate(response["context"]):
                 source = ctx["metadata"].get("source", "Unknown")
-                pages = ctx["metadata"].get("page_numbers", [])
-                print(f"- {source} (pages: {pages})")
+                if "page_numbers" in ctx["metadata"]:
+                    pages = ctx["metadata"].get("page_numbers", [])
+                    print(f"[{i+1}] {source} (pages: {pages})")
+                else:
+                    file_path = ctx["metadata"].get("file_path", "Unknown")
+                    print(f"[{i+1}] {source} (file: {file_path})")
+                
+                # Only print content if verbose flag is set
+                if args.verbose:
+                    content_preview = ctx["content"][:300] + "..." if len(ctx["content"]) > 300 else ctx["content"]
+                    print(f"    Content: {content_preview}\n")
     
     except Exception as e:
         logger.error(f"Error during execution: {str(e)}", exc_info=True)

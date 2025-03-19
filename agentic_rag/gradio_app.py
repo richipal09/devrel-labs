@@ -5,6 +5,8 @@ from pathlib import Path
 import tempfile
 from dotenv import load_dotenv
 import yaml
+import torch
+import time
 
 from pdf_processor import PDFProcessor
 from web_processor import WebProcessor
@@ -77,31 +79,75 @@ def process_repo(repo_path: str) -> str:
     except Exception as e:
         return f"✗ Error processing repository: {str(e)}"
 
-def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, language: str, collection: str) -> List[List[str]]:
+def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool, collection: str) -> List[List[str]]:
     """Process chat message using selected agent and collection"""
     try:
         print("\n" + "="*50)
         print(f"New message received: {message}")
-        print(f"Agent: {agent_type}, CoT: {use_cot}, Language: {language}, Collection: {collection}")
+        print(f"Agent: {agent_type}, CoT: {use_cot}, Collection: {collection}")
         print("="*50 + "\n")
         
+        # Determine if we should skip analysis based on collection and interface type
+        # Skip analysis for General Knowledge or when using standard chat interface (not CoT)
+        skip_analysis = collection == "General Knowledge" or not use_cot
+        
+        # Parse agent type to determine model and quantization
+        quantization = None
+        model_name = None
+        
+        if "4-bit" in agent_type:
+            quantization = "4bit"
+            model_type = "Local (Mistral)"
+        elif "8-bit" in agent_type:
+            quantization = "8bit"
+            model_type = "Local (Mistral)"
+        elif "Ollama" in agent_type:
+            model_type = "Ollama"
+            # Extract model name from agent_type and use correct Ollama model names
+            if "llama3" in agent_type.lower():
+                model_name = "ollama:llama3"
+            elif "phi-3" in agent_type.lower():
+                model_name = "ollama:phi3"
+            elif "qwen2" in agent_type.lower():
+                model_name = "ollama:qwen2"
+        else:
+            model_type = agent_type
+        
         # Select appropriate agent and reinitialize with correct settings
-        if agent_type == "Local (Mistral)":
+        if "Local" in model_type:
+            # For HF models, we need the token
             if not hf_token:
                 response_text = "Local agent not available. Please check your HuggingFace token configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = LocalRAGAgent(vector_store, use_cot=use_cot)
+            agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
+                                 skip_analysis=skip_analysis, quantization=quantization)
+        elif model_type == "Ollama":
+            # For Ollama models
+            if model_name:
+                try:
+                    agent = LocalRAGAgent(vector_store, model_name=model_name, use_cot=use_cot, 
+                                         collection=collection, skip_analysis=skip_analysis)
+                except Exception as e:
+                    response_text = f"Error initializing Ollama model: {str(e)}. Falling back to Local Mistral."
+                    print(f"Error: {response_text}")
+                    # Fall back to Mistral if Ollama fails
+                    if hf_token:
+                        agent = LocalRAGAgent(vector_store, use_cot=use_cot, collection=collection, 
+                                             skip_analysis=skip_analysis)
+                    else:
+                        return history + [[message, "Local Mistral agent not available for fallback. Please check your HuggingFace token configuration."]]
+            else:
+                response_text = "Ollama model not specified correctly."
+                print(f"Error: {response_text}")
+                return history + [[message, response_text]]
         else:
             if not openai_key:
                 response_text = "OpenAI agent not available. Please check your OpenAI API key configuration."
                 print(f"Error: {response_text}")
                 return history + [[message, response_text]]
-            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot)
-        
-        # Convert language selection to language code
-        lang_code = "es" if language == "Spanish" else "en"
-        agent.language = lang_code
+            agent = RAGAgent(vector_store, openai_api_key=openai_key, use_cot=use_cot, 
+                            collection=collection, skip_analysis=skip_analysis)
         
         # Process query and get response
         print("Processing query...")
@@ -152,10 +198,31 @@ def chat(message: str, history: List[List[str]], agent_type: str, use_cot: bool,
             # Add final formatted response to history
             history.append([message, formatted_response])
         else:
+            # For standard response (no CoT)
             formatted_response = response["answer"]
             print("\nStandard Response:")
             print("-" * 50)
             print(formatted_response)
+            
+            # Add sources if available
+            if response.get("context"):
+                print("\nSources Used:")
+                print("-" * 50)
+                sources_text = "\n\n📚 Sources used:\n"
+                formatted_response += sources_text
+                print(sources_text)
+                
+                for ctx in response["context"]:
+                    source = ctx["metadata"].get("source", "Unknown")
+                    if "page_numbers" in ctx["metadata"]:
+                        pages = ctx["metadata"].get("page_numbers", [])
+                        source_line = f"- {source} (pages: {pages})\n"
+                    else:
+                        file_path = ctx["metadata"].get("file_path", "Unknown")
+                        source_line = f"- {source} (file: {file_path})\n"
+                    formatted_response += source_line
+                    print(source_line)
+            
             history.append([message, formatted_response])
         
         print("\n" + "="*50)
@@ -179,8 +246,97 @@ def create_interface():
         # 🤖 Agentic RAG System
         
         Upload PDFs, process web content, repositories, and chat with your documents using local or OpenAI models.
+        
+        > **Note on Performance**: When using the Local (Mistral) model, initial loading can take 1-5 minutes, and each query may take 30-60 seconds to process depending on your hardware. OpenAI queries are typically much faster.
         """)
         
+        # Create model choices list for reuse
+        model_choices = []
+        # HF models first if token is available
+        if hf_token:
+            model_choices.extend([
+                "Local (Mistral)", 
+                "Local (Mistral) - 4-bit Quantized",
+                "Local (Mistral) - 8-bit Quantized",
+            ])
+        # Then Ollama models (don't require HF token)
+        model_choices.extend([
+            "Ollama - llama3",
+            "Ollama - phi-3",
+            "Ollama - qwen2"
+        ])
+        if openai_key:
+            model_choices.append("OpenAI")
+        
+        # Model Management Tab (First Tab)
+        with gr.Tab("Model Management"):
+            gr.Markdown("""
+            ## Model Management
+            
+            Download models in advance to prepare them for use in the chat interface.
+            
+            ### Hugging Face Models (Default)
+            
+            The system uses Mistral-7B by default. For Hugging Face models (Mistral), you'll need a Hugging Face token in your config.yaml file.
+            
+            ### Ollama Models (Alternative)
+            
+            Ollama models are available as alternatives. For Ollama models, this will pull the model using the Ollama client. 
+            Make sure Ollama is installed and running on your system.
+            You can download Ollama from [ollama.com/download](https://ollama.com/download)
+            """)
+            
+            with gr.Row():
+                with gr.Column():
+                    model_dropdown = gr.Dropdown(
+                        choices=model_choices,
+                        value=model_choices[0] if model_choices else None,
+                        label="Select Model to Download",
+                        interactive=True
+                    )
+                    download_button = gr.Button("Download Selected Model")
+                    model_status = gr.Textbox(
+                        label="Download Status",
+                        placeholder="Select a model and click Download to begin...",
+                        interactive=False
+                    )
+                
+                with gr.Column():
+                    gr.Markdown("""
+                    ### Model Information
+                    
+                    **Local (Mistral)**: The default Mistral-7B-Instruct-v0.2 model.
+                    - Size: ~14GB
+                    - VRAM Required: ~8GB
+                    - Good balance of quality and speed
+                    
+                    **Local (Mistral) - 4-bit Quantized**: 4-bit quantized version of Mistral-7B.
+                    - Size: ~4GB
+                    - VRAM Required: ~4GB
+                    - Faster inference with minimal quality loss
+                    
+                    **Local (Mistral) - 8-bit Quantized**: 8-bit quantized version of Mistral-7B.
+                    - Size: ~7GB
+                    - VRAM Required: ~6GB
+                    - Balance between quality and memory usage
+                    
+                    **Ollama - llama3**: Meta's Llama 3 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
+                    - Excellent performance and quality
+                    
+                    **Ollama - phi-3**: Microsoft's Phi-3 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
+                    - Efficient small model with good performance
+                    
+                    **Ollama - qwen2**: Alibaba's Qwen2 model via Ollama.
+                    - Size: ~4GB
+                    - Requires Ollama to be installed and running
+                    - High-quality model with good performance
+                    """)
+        
+        # Document Processing Tab
         with gr.Tab("Document Processing"):
             with gr.Row():
                 with gr.Column():
@@ -200,24 +356,26 @@ def create_interface():
         
         with gr.Tab("Standard Chat Interface"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
+                    # Create model choices with quantization options
                     standard_agent_dropdown = gr.Dropdown(
-                        choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
-                        value="Local (Mistral)",
+                        choices=model_choices,
+                        value=model_choices[0] if model_choices else None,
                         label="Select Agent"
                     )
-                with gr.Column():
-                    standard_language_dropdown = gr.Dropdown(
-                        choices=["English", "Spanish"],
-                        value="English",
-                        label="Response Language"
-                    )
-                with gr.Column():
+                with gr.Column(scale=1):
                     standard_collection_dropdown = gr.Dropdown(
                         choices=["PDF Collection", "Repository Collection", "General Knowledge"],
                         value="PDF Collection",
                         label="Knowledge Collection"
                     )
+            gr.Markdown("""
+            > **Collection Selection**: 
+            > - This interface ALWAYS uses the selected collection without performing query analysis.
+            > - "PDF Collection": Will ALWAYS search the PDF documents regardless of query type.
+            > - "Repository Collection": Will ALWAYS search the repository code regardless of query type.
+            > - "General Knowledge": Will ALWAYS use the model's built-in knowledge without searching collections.
+            """)
             standard_chatbot = gr.Chatbot(height=400)
             with gr.Row():
                 standard_msg = gr.Textbox(label="Your Message", scale=9)
@@ -226,24 +384,27 @@ def create_interface():
 
         with gr.Tab("Chain of Thought Chat Interface"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
+                    # Create model choices with quantization options
                     cot_agent_dropdown = gr.Dropdown(
-                        choices=["Local (Mistral)", "OpenAI"] if openai_key else ["Local (Mistral)"],
-                        value="Local (Mistral)",
+                        choices=model_choices,
+                        value=model_choices[0] if model_choices else None,
                         label="Select Agent"
                     )
-                with gr.Column():
-                    cot_language_dropdown = gr.Dropdown(
-                        choices=["English", "Spanish"],
-                        value="English",
-                        label="Response Language"
-                    )
-                with gr.Column():
+                with gr.Column(scale=1):
                     cot_collection_dropdown = gr.Dropdown(
                         choices=["PDF Collection", "Repository Collection", "General Knowledge"],
                         value="PDF Collection",
                         label="Knowledge Collection"
                     )
+            gr.Markdown("""
+            > **Collection Selection**: 
+            > - When a specific collection is selected, the system will ALWAYS use that collection without analysis:
+            >   - "PDF Collection": Will ALWAYS search the PDF documents.
+            >   - "Repository Collection": Will ALWAYS search the repository code.
+            >   - "General Knowledge": Will ALWAYS use the model's built-in knowledge.
+            > - This interface shows step-by-step reasoning and may perform query analysis when needed.
+            """)
             cot_chatbot = gr.Chatbot(height=400)
             with gr.Row():
                 cot_msg = gr.Textbox(label="Your Message", scale=9)
@@ -255,6 +416,9 @@ def create_interface():
         url_button.click(process_url, inputs=[url_input], outputs=[url_output])
         repo_button.click(process_repo, inputs=[repo_input], outputs=[repo_output])
         
+        # Model download event handler
+        download_button.click(download_model, inputs=[model_dropdown], outputs=[model_status])
+        
         # Standard chat handlers
         standard_msg.submit(
             chat,
@@ -263,7 +427,6 @@ def create_interface():
                 standard_chatbot,
                 standard_agent_dropdown,
                 gr.State(False),  # use_cot=False
-                standard_language_dropdown,
                 standard_collection_dropdown
             ],
             outputs=[standard_chatbot]
@@ -275,7 +438,6 @@ def create_interface():
                 standard_chatbot,
                 standard_agent_dropdown,
                 gr.State(False),  # use_cot=False
-                standard_language_dropdown,
                 standard_collection_dropdown
             ],
             outputs=[standard_chatbot]
@@ -290,7 +452,6 @@ def create_interface():
                 cot_chatbot,
                 cot_agent_dropdown,
                 gr.State(True),  # use_cot=True
-                cot_language_dropdown,
                 cot_collection_dropdown
             ],
             outputs=[cot_chatbot]
@@ -302,7 +463,6 @@ def create_interface():
                 cot_chatbot,
                 cot_agent_dropdown,
                 gr.State(True),  # use_cot=True
-                cot_language_dropdown,
                 cot_collection_dropdown
             ],
             outputs=[cot_chatbot]
@@ -322,14 +482,22 @@ def create_interface():
         2. **Standard Chat Interface**:
            - Quick responses without detailed reasoning steps
            - Select your preferred agent (Local Mistral or OpenAI)
-           - Choose your preferred response language
-           - Select which knowledge collection to query
+           - Select which knowledge collection to query:
+             - **PDF Collection**: Always searches PDF documents
+             - **Repository Collection**: Always searches code repositories
+             - **General Knowledge**: Uses the model's built-in knowledge without searching collections
         
         3. **Chain of Thought Chat Interface**:
            - Detailed responses with step-by-step reasoning
            - See the planning, research, reasoning, and synthesis steps
            - Great for complex queries or when you want to understand the reasoning process
            - May take longer but provides more detailed and thorough answers
+           - Same collection selection options as the Standard Chat Interface
+        
+        4. **Performance Expectations**:
+           - **Local (Mistral) model**: Initial loading takes 1-5 minutes, each query takes 30-60 seconds
+           - **OpenAI model**: Much faster responses, typically a few seconds per query
+           - Chain of Thought reasoning takes longer for both models
         
         Note: OpenAI agent requires an API key in `.env` file
         """)
@@ -349,6 +517,142 @@ def main():
         share=True,
         inbrowser=True
     )
+
+def download_model(model_type: str) -> str:
+    """Download a model and return status message"""
+    try:
+        print(f"Downloading model: {model_type}")
+        
+        # Parse model type to determine model and quantization
+        quantization = None
+        model_name = None
+        
+        if "4-bit" in model_type or "8-bit" in model_type:
+            # For HF models, we need the token
+            if not hf_token:
+                return "❌ Error: HuggingFace token not found in config.yaml. Please add your token first."
+            
+            model_name = "mistralai/Mistral-7B-Instruct-v0.2"  # Default model
+            if "4-bit" in model_type:
+                quantization = "4bit"
+            elif "8-bit" in model_type:
+                quantization = "8bit"
+                
+            # Start download timer
+            start_time = time.time()
+            
+            try:
+                from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+                
+                # Download tokenizer first (smaller download to check access)
+                try:
+                    tokenizer = AutoTokenizer.from_pretrained(model_name, token=hf_token)
+                except Exception as e:
+                    if "401" in str(e):
+                        return f"❌ Error: This model is gated. Please accept the terms on the Hugging Face website: https://huggingface.co/{model_name}"
+                    else:
+                        return f"❌ Error downloading tokenizer: {str(e)}"
+                
+                # Set up model loading parameters
+                model_kwargs = {
+                    "token": hf_token,
+                    "device_map": None,  # Don't load on GPU for download only
+                }
+                
+                # Apply quantization if specified
+                if quantization == '4bit':
+                    try:
+                        quantization_config = BitsAndBytesConfig(
+                            load_in_4bit=True,
+                            bnb_4bit_compute_dtype=torch.float16,
+                            bnb_4bit_use_double_quant=True,
+                            bnb_4bit_quant_type="nf4"
+                        )
+                        model_kwargs["quantization_config"] = quantization_config
+                    except ImportError:
+                        return "❌ Error: bitsandbytes not installed. Please install with: pip install bitsandbytes>=0.41.0"
+                elif quantization == '8bit':
+                    try:
+                        quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+                        model_kwargs["quantization_config"] = quantization_config
+                    except ImportError:
+                        return "❌ Error: bitsandbytes not installed. Please install with: pip install bitsandbytes>=0.41.0"
+                
+                # Download model (but don't load it fully to save memory)
+                AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    **model_kwargs
+                )
+                
+                # Calculate download time
+                download_time = time.time() - start_time
+                return f"✅ Successfully downloaded {model_type} in {download_time:.1f} seconds."
+                
+            except Exception as e:
+                return f"❌ Error downloading model: {str(e)}"
+                
+        elif "Ollama" in model_type:
+            # Extract model name from model_type
+            if "llama3" in model_type.lower():
+                model_name = "llama3"
+            elif "phi-3" in model_type.lower():
+                model_name = "phi3"
+            elif "qwen2" in model_type.lower():
+                model_name = "qwen2"
+            else:
+                return "❌ Error: Unknown Ollama model type"
+            
+            # Use Ollama to pull the model
+            try:
+                import ollama
+                
+                print(f"Pulling Ollama model: {model_name}")
+                start_time = time.time()
+                
+                # Check if model already exists
+                try:
+                    models = ollama.list().models
+                    available_models = [model.model for model in models]
+                    
+                    # Check for model with or without :latest suffix
+                    if model_name in available_models or f"{model_name}:latest" in available_models:
+                        return f"✅ Model {model_name} is already available in Ollama."
+                except Exception:
+                    # If we can't check, proceed with pull anyway
+                    pass
+                
+                # Pull the model with progress tracking
+                progress_text = ""
+                for progress in ollama.pull(model_name, stream=True):
+                    status = progress.get('status')
+                    if status:
+                        progress_text = f"Status: {status}"
+                        print(progress_text)
+                    
+                    # Show download progress
+                    if 'completed' in progress and 'total' in progress:
+                        completed = progress['completed']
+                        total = progress['total']
+                        if total > 0:
+                            percent = (completed / total) * 100
+                            progress_text = f"Downloading: {percent:.1f}% ({completed}/{total})"
+                            print(progress_text)
+                
+                # Calculate download time
+                download_time = time.time() - start_time
+                return f"✅ Successfully pulled Ollama model {model_name} in {download_time:.1f} seconds."
+                
+            except ImportError:
+                return "❌ Error: ollama not installed. Please install with: pip install ollama"
+            except ConnectionError:
+                return "❌ Error: Could not connect to Ollama. Please make sure Ollama is installed and running."
+            except Exception as e:
+                return f"❌ Error pulling Ollama model: {str(e)}"
+        else:
+            return "❌ Error: Unknown model type"
+    
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
 if __name__ == "__main__":
     main() 

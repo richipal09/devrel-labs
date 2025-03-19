@@ -4,6 +4,8 @@
 
 An intelligent RAG (Retrieval Augmented Generation) system that uses an LLM agent to make decisions about information retrieval and response generation. The system processes PDF documents and can intelligently decide which knowledge base to query based on the user's question.
 
+<img src="img/architecture.png" alt="CoT output" width="80%">
+
 The system has the following features:
 
 - Intelligent query routing
@@ -12,7 +14,18 @@ The system has the following features:
 - Smart context retrieval and response generation
 - FastAPI-based REST API for document upload and querying
 - Support for both OpenAI-based agents or local, transformer-based agents (`Mistral-7B` by default)
+- Support for quantized models (4-bit/8-bit) and Ollama models for faster inference
 - Optional Chain of Thought (CoT) reasoning for more detailed and structured responses
+
+<img src="img/gradio_1.png" alt="Gradio Interface" width="80%">
+
+<img src="img/gradio_2.png" alt="Gradio Interface" width="80%">
+
+<img src="img/gradio_3.png" alt="Gradio Interface" width="80%">
+
+Here you can find a result of using Chain of Thought (CoT) reasoning:
+
+<img src="img/cot_final_answer.png" alt="CoT output" width="80%">
 
 ## 0. Prerequisites and setup
 
@@ -29,6 +42,8 @@ The system has the following features:
   - Minimum 16GB RAM (recommended >24GBs)
   - GPU with 8GB VRAM recommended for better performance
   - Will run on CPU if GPU is not available, but will be significantly slower.
+  - For quantized models (4-bit/8-bit): Reduced VRAM requirements (4-6GB) with minimal performance impact
+  - For Ollama models: Requires Ollama to be installed and running, with significantly reduced memory requirements
 
 ### Setup
 
@@ -36,11 +51,11 @@ The system has the following features:
 
     ```bash
     git clone https://github.com/oracle-devrel/devrel-labs.git
-    cd agentic-rag
+    cd devrel-labs/agentic_rag
     pip install -r requirements.txt
     ```
 
-2. Authenticate with HuggingFace:
+2. Authenticate with HuggingFace (for Hugging Face models only):
    
    The system uses `Mistral-7B` by default, which requires authentication with HuggingFace:
 
@@ -63,6 +78,30 @@ The system has the following features:
 
    If no API key is provided, the system will automatically download and use `Mistral-7B-Instruct-v0.2` for text generation when using the local model. No additional configuration is needed.
    
+4. For quantized models, ensure bitsandbytes is installed:
+
+    ```bash
+    pip install bitsandbytes>=0.41.0
+    ```
+
+5. For Ollama models, install Ollama:
+
+    a. Download and install Ollama from [ollama.com/download](https://ollama.com/download) for Windows, or run the following command in Linux:
+
+      ```bash
+      curl -fsSL https://ollama.com/install.sh | sh
+      ```
+    
+    b. Start the Ollama service
+    
+    c. Pull the models you want to use beforehand:
+    
+    ```bash
+    ollama pull llama3
+    ollama pull phi3
+    ollama pull qwen2
+    ```
+
 ## 1. Getting Started
 
 You can launch this solution in three ways:
@@ -93,19 +132,29 @@ python gradio_app.py
 
 This will start the Gradio server and automatically open the interface in your default browser at `http://localhost:7860`. The interface has two main tabs:
 
-1. **Document Processing**:
+1. **Model Management**:
+   - Download models in advance to prepare them for use
+   - View model information including size and VRAM requirements
+   - Check download status and error messages
+
+2. **Document Processing**:
    - Upload PDFs using the file uploader
    - Process web content by entering URLs
    - View processing status and results
 
-2. **Chat Interface**:
-   - Select between Local (Mistral) and OpenAI models
+3. **Chat Interface**:
+   - Select between different model options:
+     - Local (Mistral) - Default Mistral-7B model (recommended)
+     - Local (Mistral) with 4-bit or 8-bit quantization for faster inference
+     - Ollama models (llama3, phi-3, qwen2) as alternative options
+     - OpenAI (if API key is configured)
    - Toggle Chain of Thought reasoning for more detailed responses
    - Chat with your documents using natural language
    - Clear chat history as needed
 
 Note: The interface will automatically detect available models based on your configuration:
-- Local Mistral model requires HuggingFace token in `config.yaml`
+- Local Mistral model requires HuggingFace token in `config.yaml` (default option)
+- Ollama models require Ollama to be installed and running (alternative options)
 - OpenAI model requires API key in `.env` file
 
 ### 3. Using Individual Python Components via Command Line
@@ -301,14 +350,19 @@ This endpoint processes a query through the agentic RAG pipeline and returns a r
 
 ## Annex: Architecture
 
+<img src="img/architecture.png" alt="Architecture" width="80%">
+
 The system consists of several key components:
 
-1. **PDF Processor**: we use Docling to extract and chunk text from PDF documents
-2. **Vector Store**: Manages document embeddings and similarity search using ChromaDB
-3. **RAG Agent**: Makes intelligent decisions about query routing and response generation
+1. **PDF Processor**: we use `docling` to extract and chunk text from PDF documents
+2. **Web Processor**: we use `trafilatura` to extract and chunk text from websites
+3. **GitHub Repository Processor**: we use `gitingest` to extract and chunk text from repositories
+4. **Vector Store**: Manages document embeddings and similarity search using `ChromaDB`
+5. **RAG Agent**: Makes intelligent decisions about query routing and response generation
    - OpenAI Agent: Uses `gpt-4-turbo-preview` for high-quality responses, but requires an OpenAI API key
    - Local Agent: Uses `Mistral-7B` as an open-source alternative
-4. **FastAPI Server**: Provides REST API endpoints for document upload and querying
+6. **FastAPI Server**: Provides REST API endpoints for document upload and querying
+7. **Gradio Interface**: Provides a user-friendly web interface for interacting with the RAG system
 
 The RAG Agent flow is the following:
 
