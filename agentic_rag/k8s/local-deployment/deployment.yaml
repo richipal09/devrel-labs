@@ -84,7 +84,7 @@ spec:
           # Clone and set up the application
           cd /app
           git clone https://github.com/oracle-devrel/devrel-labs.git
-          cd agentic_rag
+          cd devrel-labs/agentic_rag
           pip install -r requirements.txt
           
           # Start the Gradio app
