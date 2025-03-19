@@ -62,36 +62,40 @@ This method is the easiest way to implement and deploy. We call it local because
 
 ### Distributed System Deployment
 
-By decoupling the `ollama` LLM inference system to another pod, we can easily ready our system for **vertical scaling**: if we're ever running out of resources or we need to use a bigger model, we don't have to worry about the other solution components not having enough resources for processing and logging: we can simply scale up our inference pod and connect it via a FastAPI or similar system to allow the Gradio interface to make calls to the model, following a distributed system architecture.
+By decoupling the `ollama` LLM inference system to another pod, we could easily ready our system for **vertical scaling**: if we're ever running out of resources or we need to use a bigger model, we don't have to worry about the other solution components not having enough resources for processing and logging: we can simply scale up our inference pod and connect it via a FastAPI or similar system to allow the Gradio interface to make calls to the model, following a distributed system architecture.
 
 The advantages are:
 
 - **Independent Scaling**: Each component can be scaled according to its specific resource needs
 - **Resource Optimization**: Dedicated resources for compute-intensive LLM inference separate from other components
 - **High Availability**: System remains operational even if individual components fail, and we can have multiple pods running failover LLMs to help us with disaster recovery.
-- **Flexible Model Deployment**: Easily swap or upgrade LLM models without affecting the rest of the system (also, with 0 downtime!)
+- **Flexible Model Deployment**: Easily swap or upgrade LLM models without affecting the rest of the system (also, with virtually zero downtime!)
 - **Load Balancing**: Distribute inference requests across multiple LLM pods for better performance, thus allowing concurrent users in our Gradio interface.
 - **Isolation**: Performance issues on the LLM side won't impact the interface
 - **Cost Efficiency**: Allocate expensive GPU resources only where needed (inference) while using cheaper CPU resources for other components (e.g. we use GPU for Chain of Thought reasoning, while keeping a quantized CPU LLM for standard chatting).
 
 ## Quick Start
 
-### Step by Step Deployment
+For this solution, we have currently implemented the local system deployment, which is what we'll cover in this section.
 
-0. Clone the repository containing the Kubernetes manifests:
+First, we need to create a GPU OKE cluster with `zx` and Terraform. For this, you can follow the steps in [this repository](https://github.com/vmleon/oci-oke-gpu), or reuse your own Kubernetes cluster if you happen to already have one.
 
-```bash
-git clone https://github.com/oracle-devrel/devrel-labs.git
-cd devrel-labs/agentic_rag/k8s
-```
+Then, we can start setting up the solution in our cluster by following these steps.
 
-1. Create a namespace:
+1. Clone the repository containing the Kubernetes manifests:
 
-```bash
-kubectl create namespace agentic-rag
-```
+  ```bash
+  git clone https://github.com/oracle-devrel/devrel-labs.git
+  cd devrel-labs/agentic_rag/k8s
+  ```
 
-2. Create a ConfigMap:
+2. Create a namespace:
+
+  ```bash
+  kubectl create namespace agentic-rag
+  ```
+
+3. Create a ConfigMap:
 
   This step will help our deployment for several reasons:
 
@@ -134,16 +138,17 @@ kubectl create namespace agentic-rag
 
   This approach makes our deployment more flexible, secure, and maintainable compared to hardcoding configuration values.
 
-3. Apply the manifests:
+4. Apply the manifests:
 
   ```bash
+  kubectl apply -n agentic-rag -f local-deployment/pvcs.yaml
   kubectl apply -n agentic-rag -f local-deployment/deployment.yaml
   kubectl apply -n agentic-rag -f local-deployment/service.yaml
   ```
 
-4. Monitor the Deployment
+5. Monitor the Deployment
 
-  With the following commands, we can check the status of our pods:
+  With the following commands, we can check the status of our pod:
 
   ```bash
   kubectl get pods -n agentic-rag
@@ -165,22 +170,6 @@ kubectl get service agentic-rag -n agentic-rag
 
 Access the application in your browser at `http://<EXTERNAL-IP>`.
 
-
-### Shell Script Deployment
-
-For a quick start, use the deployment script. Just go into the script and replace your `HF_TOKEN` in line 17 (if you're planning on using `mistral-7b`, or leave it as-is if you're planning on using `ollama`):
-
-```bash
-# Make the script executable
-chmod +x deploy.sh
-
-# Deploy with a Hugging Face token
-./deploy.sh --hf-token "your-huggingface-token" --namespace agentic-rag
-
-# Or deploy without a Hugging Face token (Ollama models only)
-./deploy.sh --namespace agentic-rag
-```
-
 ## Resource Requirements
 
 The deployment of this solution requires the following minimum resources:
@@ -189,3 +178,7 @@ The deployment of this solution requires the following minimum resources:
 - **Memory**: 16GB+ RAM
 - **Storage**: 50GB+
 - **GPU**: recommended for faster inference. In theory, you can use `mistral-7b` CPU-quantized models, but it will be sub-optimal.
+
+## Conclusion
+
+You can check out the full AI solution and the deployment options we mention in this article in [the official GitHub repository](https://github.com/oracle-devrel/devrel-labs/tree/main/agentic_rag).
