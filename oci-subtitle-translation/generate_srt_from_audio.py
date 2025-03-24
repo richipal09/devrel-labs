@@ -21,7 +21,7 @@ log_step(f"Starting transcription process for file: {args.input_file}")
 
 # Create a default config using DEFAULT profile in default location
 try:
-    config = oci.config.from_file()
+    config = oci.config.from_file(profile_name="DEVRELCOMM")
     log_step("Successfully loaded OCI configuration")
 except Exception as e:
     log_step(f"Failed to load OCI configuration: {str(e)}", True)
@@ -59,22 +59,22 @@ log_step(f"  • Language: en-US")
 log_step(f"  • Diarization: Enabled (2 speakers)")
 log_step(f"  • Profanity filter: Enabled (TAG mode)")
 
+file_name = args.input_file.split("/")[-1]
+
 try:
     create_transcription_job_response = ai_speech_client.create_transcription_job(
         create_transcription_job_details=oci.ai_speech.models.CreateTranscriptionJobDetails(
             compartment_id=config_yaml['speech']['compartment_id'],
-            input_location=oci.ai_speech.models.ObjectListFileInputLocation(
-                location_type="OBJECT_LIST_FILE_INPUT_LOCATION", 
-                object_location=oci.ai_speech.models.ObjectLocation(
+            input_location=oci.ai_speech.models.ObjectListInlineInputLocation(
+                location_type="OBJECT_LIST_INLINE_INPUT_LOCATION", 
+                object_locations=[oci.ai_speech.models.ObjectLocation(
                     namespace_name=config_yaml['speech']['namespace'],
                     bucket_name=config_yaml['speech']['bucket_name'],
-                    object_names=[args.input_file])),  # Fixed: Use actual input file name
+                    object_names=[args.input_file])]),
             output_location=oci.ai_speech.models.OutputLocation(
                 namespace_name=config_yaml['speech']['namespace'],
                 bucket_name=config_yaml['speech']['bucket_name'],
-                prefix="transcriptions"),
-            display_name=f"Transcription_{args.input_file}",
-            description=f"transcription_job_{args.input_file.replace('.', '_')}",
+                prefix=f"transcriptions/{file_name}"),
             additional_transcription_formats=["SRT"],
             model_details=oci.ai_speech.models.TranscriptionModelDetails(
                 domain="GENERIC",
