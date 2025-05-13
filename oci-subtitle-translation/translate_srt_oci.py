@@ -3,7 +3,6 @@ import yaml
 import argparse
 import sys
 import os
-import re
 from datetime import datetime
 
 def log_step(message, is_error=False):
@@ -26,7 +25,7 @@ log_step(f"Starting translation of {args.input_file} to {args.target_language}")
 
 # Create a default config using DEFAULT profile in default location
 try:
-    config = oci.config.from_file(profile_name="DEVRELCOMM")
+    config = oci.config.from_file(profile_name="comm")
     log_step("Successfully loaded OCI configuration")
 except Exception as e:
     log_step(f"Failed to load OCI configuration: {str(e)}", True)
@@ -69,53 +68,72 @@ except Exception as e:
     log_step(f"Failed to read SRT file from OCI Object Storage: {str(e)}", True)
     sys.exit(1)
 
-def parse_srt(srt_text):
-    srt_entries = []
-    
-    for block in srt_text.strip().split("\n\n"):
-        lines = block.strip().split("\n")
-        if len(lines) < 3:
-            continue
-        index, timestamp, *text_lines = lines  
-        text = " ".join(text_lines)  
-        srt_entries.append((index, timestamp, text))
-
-    return srt_entries
-srt_entries = parse_srt(srt_content)
-log_step(f"Extracted subtitles from SRT file.")
-
-translated_entries = []
-for index, timestamp, text in srt_entries:
-    try:
-        translate_request = oci.ai_language.models.TranslateTextDetails(
-            text=text,
-            source_language_code="auto",
-            target_language_code=args.target_language
-        )
-        translation_response = ai_translation_client.translate_text(translate_request)
-        translated_text = translation_response.data.translated_text if translation_response and translation_response.data else text
-        log_step(f"Translated: {text} --> {translated_text}")
-    except Exception as e:
-        log_step(f"Translation failed for: {text}. Error: {str(e)}", True)
-        translated_text = text 
-
-    translated_entries.append((index, timestamp, translated_text)) 
-
-
-log_step(f"Translation completed successfully with {len(translated_entries)} entries.")
-
-def rebuild_srt(translated_entries):
-    srt_output = []
-    for index, timestamp, translated_text in translated_entries:
-        srt_output.append(f"{index}\n{timestamp}\n{translated_text}\n")
-    
-    return "\n".join(srt_output)
-
-translated_srt_content = rebuild_srt(translated_entries)
-
 try:
-    object_storage_client.put_object(namespace, bucket_name, output_file, translated_srt_content.encode('utf-8'))
+    # Check text length before translation
+    text_length = len(srt_content)
+    log_step(f"Text length: {text_length} characters")
+    
+    if text_length > 5000:
+        log_step("Text length exceeds 5000 characters limit. Translation cannot proceed.", True)
+        sys.exit(1)
+    
+    # Split SRT content into chunks of max 5000 characters
+    def split_text_into_chunks(text, max_chunk_size=5000):
+        chunks = []
+        current_position = 0
+        text_length = len(text)
+        
+        while current_position < text_length:
+            chunk_end = min(current_position + max_chunk_size, text_length)
+            # Try to find a newline to make cleaner splits
+            if chunk_end < text_length and text[chunk_end] != '\n':
+                # Look for the last newline in this chunk
+                last_newline = text.rfind('\n', current_position, chunk_end)
+                if last_newline > current_position:
+                    chunk_end = last_newline + 1
+            
+            chunks.append(text[current_position:chunk_end])
+            current_position = chunk_end
+        
+        return chunks
+    
+    # Split content into manageable chunks
+    srt_chunks = split_text_into_chunks(srt_content)
+    log_step(f"Split SRT content into {len(srt_chunks)} chunks for translation")
+    
+    # Create batch translation request with multiple documents
+    documents = []
+    for i, chunk in enumerate(srt_chunks):
+        documents.append({
+            "key": str(i+1),
+            "text": chunk,
+            "languageCode": "auto"
+        })
+    
+    batch_translation_details = oci.ai_language.models.BatchLanguageTranslationDetails(
+        documents=documents,
+        target_language_code=args.target_language
+    )
+    
+    # Execute batch translation
+    translation_response = ai_language_client.batch_language_translation(batch_translation_details)
+    
+    # Get the translated content
+    if translation_response.data and translation_response.data.documents:
+        translated_content = translation_response.data.documents[0].translated_text
+        log_step("Successfully translated the entire SRT file")
+    else:
+        log_step("No translation result received", True)
+        sys.exit(1)
+
+except Exception as e:
+    log_step(f"Batch translation failed: {str(e)}", True)
+    sys.exit(1)
+
+# Upload the translated content back to OCI
+try:
+    object_storage_client.put_object(namespace, bucket_name, output_file, translated_content.encode('utf-8'))
     log_step(f"Translated SRT uploaded to OCI as {output_file}")
 except Exception as e:
     log_step(f"Failed to upload translated SRT to OCI: {str(e)}", True)
-    sys.exit(1)
+    sys.exit(1) 
