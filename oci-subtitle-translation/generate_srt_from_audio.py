@@ -5,6 +5,8 @@ import yaml
 import argparse
 import sys
 import time
+import os
+import json
 from datetime import datetime
 
 def log_step(message, is_error=False):
@@ -30,6 +32,7 @@ def wait_for_job_completion(ai_speech_client, job_id, check_interval=15):
                 job_id_part = job_id.split("/")[0]
                 output_file = f"{output_prefix}/{job_id_part}/{input_file_name}.srt"
                 return output_file
+            
             elif status == "FAILED":
                 log_step("Transcription job failed", True)
                 sys.exit(1)
@@ -51,22 +54,6 @@ args = parser.parse_args()
 
 log_step(f"Starting transcription process for file: {args.input_file}")
 
-# Create a default config using DEFAULT profile in default location
-try:
-    config = oci.config.from_file(profile_name="comm")
-    log_step("Successfully loaded OCI configuration")
-except Exception as e:
-    log_step(f"Failed to load OCI configuration: {str(e)}", True)
-    sys.exit(1)
-
-# Initialize service client with default config file
-try:
-    ai_speech_client = oci.ai_speech.AIServiceSpeechClient(config)
-    log_step("Successfully initialized AI Speech client")
-except Exception as e:
-    log_step(f"Failed to initialize AI Speech client: {str(e)}", True)
-    sys.exit(1)
-
 # Load config from yaml file
 def load_config():
     """Load configuration from config.yaml"""
@@ -82,6 +69,22 @@ def load_config():
         sys.exit(1)
 
 config_yaml = load_config()
+
+# Load config based on the profile specificied in the YAML file
+try:
+    config = oci.config.from_file(profile_name=config_yaml.get("profile", "DEFAULT"))
+    log_step("Successfully loaded OCI configuration")
+except Exception as e:
+    log_step(f"Failed to load OCI configuration: {str(e)}", True)
+    sys.exit(1)
+
+# Initialize service client with default config file
+try:
+    ai_speech_client = oci.ai_speech.AIServiceSpeechClient(config)
+    log_step("Successfully initialized AI Speech client")
+except Exception as e:
+    log_step(f"Failed to initialize AI Speech client: {str(e)}", True)
+    sys.exit(1)
 
 # Send the request to service
 log_step("Creating transcription job with following settings:")
