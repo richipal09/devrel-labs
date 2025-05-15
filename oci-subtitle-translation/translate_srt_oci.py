@@ -23,23 +23,7 @@ output_file = f"{input_filename}_{args.target_language}.srt"
 
 log_step(f"Starting translation of {args.input_file} to {args.target_language}")
 
-# Create a default config using DEFAULT profile in default location
-try:
-    config = oci.config.from_file(profile_name="comm")
-    log_step("Successfully loaded OCI configuration")
-except Exception as e:
-    log_step(f"Failed to load OCI configuration: {str(e)}", True)
-    sys.exit(1)
-
-# Initialize service client with default config file
-try:
-    ai_language_client = oci.ai_language.AIServiceLanguageClient(config)
-    log_step("Successfully initialized AI Language client")
-except Exception as e:
-    log_step(f"Failed to initialize AI Language client: {str(e)}", True)
-    sys.exit(1)
-
-# Load bucket details from config.yaml
+# Load details from config.yaml file
 def load_config():
     try:
         with open('config.yaml', 'r') as f:
@@ -51,6 +35,23 @@ def load_config():
         sys.exit(1)
 
 config_yaml = load_config()
+
+# Load OCI config using profile from config.yaml
+try:
+    profile_name = config_yaml.get("profile", "DEFAULT")
+    config = oci.config.from_file(profile_name=profile_name)
+    log_step("Successfully loaded OCI configuration")
+except Exception as e:
+    log_step(f"Failed to load OCI configuration: {str(e)}", True)
+    sys.exit(1)
+
+# Initialize service client
+try:
+    ai_language_client = oci.ai_language.AIServiceLanguageClient(config)
+    log_step("Successfully initialized AI Language client")
+except Exception as e:
+    log_step(f"Failed to initialize AI Language client: {str(e)}", True)
+    sys.exit(1)
 
 object_storage_client = oci.object_storage.ObjectStorageClient(config)
 
